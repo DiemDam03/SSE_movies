@@ -16,11 +16,6 @@ def convert_csv_to_sqlite(csv_path, db_path):
     df.to_sql("movies", conn, if_exists="replace", index=False)
     conn.close()
 
-# def movie_dataset_processing(source):
-#     movie = pd.read_csv(source)
-#     movie['text'] = movie['title'] + ' | ' + movie['genres']
-#     return movie['text'].tolist()
-
 def movie_dataset_processing_from_sqlite():
     conn = sqlite3.connect(SQL_DB_PATH)
     df = pd.read_sql_query("SELECT title, genres FROM movies", conn)
