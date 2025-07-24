@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
 import db
+import uvicorn
+
 
 
 app = FastAPI(title="CRUD")
@@ -41,5 +43,4 @@ def delete_movie(movie_id: int):
     return {"message": "Movie deleted"}
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run("db_manager:app", host="0.0.0.0", port=8000, reload=True)

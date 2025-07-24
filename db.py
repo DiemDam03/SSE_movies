@@ -10,6 +10,35 @@ SQL_DB_PATH = os.path.join(BASE_DIR, "movies.sqlite")
 VECTOR_DB_PATH = os.path.join(BASE_DIR, "vector_db.sqlite")
 
 
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import os
+
+def get_connection():
+    return psycopg2.connect(
+        host=os.getenv("POSTGRES_HOST", "localhost"),
+        port=os.getenv("POSTGRES_PORT", 5432),
+        dbname=os.getenv("POSTGRES_DB", "movies"),
+        user=os.getenv("POSTGRES_USER", "postgres"),
+        password=os.getenv("POSTGRES_PASSWORD", "yourpassword")
+    )
+
+import pandas as pd
+import psycopg2
+
+def migrate_sqlite_to_postgres():
+    # đọc từ SQLite
+    sqlite_df = pd.read_sql("SELECT * FROM movies", sqlite3.connect("movies.sqlite"))
+    
+    # ghi vào PostgreSQL
+    conn = get_connection()
+    cursor = conn.cursor()
+    for _, row in sqlite_df.iterrows():
+        cursor.execute("INSERT INTO movies (movieId, title, genres) VALUES (%s, %s, %s)",
+                       (row["movieId"], row["title"], row["genres"]))
+    conn.commit()
+    conn.close()
+
 def convert_csv_to_sqlite(csv_path, db_path):
     df = pd.read_csv(csv_path)
     conn = sqlite3.connect(db_path)
@@ -18,7 +47,7 @@ def convert_csv_to_sqlite(csv_path, db_path):
 
 def movie_dataset_processing_from_sqlite():
     conn = sqlite3.connect(SQL_DB_PATH)
-    df = pd.read_sql_query("SELECT title, genres FROM movies", conn)
+    df = pd.read_sql_query("SELECT title, genres FROM movies", conn)    
     df['text'] = df['title'] + ' | ' + df['genres']
     conn.close()
     return df['text'].tolist()
@@ -79,7 +108,7 @@ def initialize_database():
 
 
 def get_all_movies():
-    conn = sqlite3.connect(SQL_DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT movieId, title, genres FROM movies")
     movies = [{"id": row[0], "title": row[1], "genres": row[2]} for row in c.fetchall()]
@@ -87,7 +116,7 @@ def get_all_movies():
     return movies
 
 def get_movie_by_id(movie_id: int):
-    conn = sqlite3.connect(SQL_DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT movieId, title, genres FROM movies WHERE movieId = ?", (movie_id,))
     row = c.fetchone()
@@ -97,9 +126,8 @@ def get_movie_by_id(movie_id: int):
         return {"id": row[0], "title": row[1], "genres": row[2]}
     return None
 
-
 def insert_movie(movie: dict):
-    conn = sqlite3.connect(SQL_DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     c.execute("INSERT INTO movies (movieId, title, genres) VALUES (?, ?, ?)", 
               (movie["id"], movie["title"], movie["genres"]))
@@ -107,7 +135,7 @@ def insert_movie(movie: dict):
     conn.close()
 
 def update_movie(movie_id: int, movie: dict):
-    conn = sqlite3.connect(SQL_DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     c.execute("UPDATE movies SET title = ?, genres = ? WHERE movieId = ?", 
               (movie["title"], movie["genres"], movie_id))
@@ -115,7 +143,7 @@ def update_movie(movie_id: int, movie: dict):
     conn.close()
 
 def delete_movie(movie_id: int):
-    conn = sqlite3.connect(SQL_DB_PATH)
+    conn = get_connection()
     c = conn.cursor()
     c.execute("DELETE FROM movies WHERE movieId = ?", (movie_id,))
     conn.commit()
@@ -125,3 +153,5 @@ def delete_movie(movie_id: int):
 if __name__ == "__main__":
     convert_csv_to_sqlite(CSV_DATASET_PATH, SQL_DB_PATH)
     initialize_database()
+
+
