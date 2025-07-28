@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
 import db
-
+import milvus_db
 
 app = FastAPI(title="CRUD")
 
@@ -11,7 +11,7 @@ class Movie(BaseModel):
     title: str
     genres: str
 
-@app.get("/movies/", response_model=List[Movie])
+@app.get("/movies/", response_model=List[Movie] )
 def get_all_movies():
     return db.get_all_movies()
 
