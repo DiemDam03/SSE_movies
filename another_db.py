@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import tfidf
+import core.tfidf as tfidf
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # MILVUS_DATABASE_PATH = os.path.join(BASE_DIR, "milvus.db")
@@ -84,12 +84,22 @@ def convert_csv_to_postgres():
     cursor.close()
     conn.close()
 
-#not finish
 def movie_dataset_processing_from_postgres():
     conn = connect_to_postgres()
-    cursor = conn.cursor()
-    # df = 
-    pass
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+    
+    cursor.execute("SELECT title, genres FROM movies ORDER BY movieId")
+    rows = cursor.fetchall()
+    
+    cursor.close()
+    conn.close()
+    
+    texts = []
+    for row in rows:
+        text = f"{row['title']} | {row['genres'] or ''}"
+        texts.append(text)
+    
+    return texts
 
 def generate_tfidf():
     dataset = movie_dataset_processing_from_postgres()
@@ -97,11 +107,24 @@ def generate_tfidf():
     tf_all = tfidf.compute_tf_all(vocab_all)
     idf_dict = tfidf.compute_idf_single(dataset)
     tfidf_all = tfidf.compute_tfidf_all(tf_all, idf_dict)
-    
     return dataset, tfidf_all, idf_dict
 
-def converting_tfidf_to_fixed_vector():
+def get_unique_words_for_vector_dim(corpus: list[str]):
+    unique_words = set()
+    for doc in corpus:
+        vocab = tfidf.create_vocab_single(doc)
+        unique_words.update(vocab.key())
+    return sorted(list(unique_words))
 
+def converting_tfidf_to_fixed_dim_vector(tfidf_dict, unique_words):
+    vector = [0.0] * len(unique_words)
+    word_to_index = {word: i for i, word in enumerate(unique_words)}
+    for word, value in tfidf_dict.items():
+        if word in word_to_index:
+            vector[word_to_index[word]] = value
+    return vector
+
+def generate_vector():
     pass
 
 def storing_vector_to_milvus():

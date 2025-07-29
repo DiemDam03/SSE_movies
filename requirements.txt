@@ -1,0 +1,12 @@
+# FastAPI and web framework dependencies
+fastapi
+uvicorn
+pydantic
+
+# Database dependencies
+psycopg2-binary
+pymilvus
+
+# Data processing
+pandas
+numpy

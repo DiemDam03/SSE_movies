@@ -2,7 +2,7 @@ from fastapi import FastAPI, Query
 from pydantic import BaseModel
 from typing import List
 import db
-import tfidf
+import core.tfidf as tfidf
 
 app = FastAPI(title="Movie Search")
 
@@ -32,4 +32,4 @@ def search_movies(q: str = Query(...), top_k: int = 5):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app_search:app", host="0.0.0.0", port=8000, reload=True)

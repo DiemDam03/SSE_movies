@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-import tfidf
+import core.tfidf as tfidf
 import sqlite3
 import json
 

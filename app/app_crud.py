@@ -42,4 +42,4 @@ def delete_movie(movie_id: int):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("db_manager:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("app_crud:app", host="0.0.0.0", port=8000, reload=True)
