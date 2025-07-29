@@ -116,7 +116,7 @@ def get_unique_words_for_vector_dim(corpus: list[str]):
         unique_words.update(vocab.key())
     return sorted(list(unique_words))
 
-def converting_tfidf_to_fixed_dim_vector(tfidf_dict, unique_words):
+def converting_tfidf_to_fixed_dim_vector(tfidf_dict: dict, unique_words):
     vector = [0.0] * len(unique_words)
     word_to_index = {word: i for i, word in enumerate(unique_words)}
     for word, value in tfidf_dict.items():
@@ -124,15 +124,31 @@ def converting_tfidf_to_fixed_dim_vector(tfidf_dict, unique_words):
             vector[word_to_index[word]] = value
     return vector
 
-def generate_vector():
-    pass
+def generate_vectors(corpus):
+    _, tfidf_all, _ = generate_tfidf()
+    unique_words = get_unique_words_for_vector_dim(corpus)
+    modified_vectors = [
+        converting_tfidf_to_fixed_dim_vector(tfidf_dict, unique_words)
+        for tfidf_dict in tfidf_all
+    ]
+    return modified_vectors
 
-def storing_vector_to_milvus():
+def storing_vectors():
+    dataset = movie_dataset_processing_from_postgres()
+    vectors = generate_vectors(dataset)
+    movie_indices = list(range(len(vectors)))
+
     connect_to_milvus()
-
-    pass    
+    collection = Collection(COLLECTION_NAME)
+    
+    entities = [movie_indices, vectors]
+    collection.insert(entities)
+    collection.flush()
 
 def storing_metadata_to_postgres():
+    pass
+
+def loading_vectors_from_milvus():
     pass
 
 def loading_metadata_from_postgres():
