@@ -2,11 +2,11 @@ from fastapi import FastAPI, Query
 from pydantic import BaseModel
 from typing import List
 import database.db as db
-from database.db import DatabaseManager as dbm
+from database.db import DatabaseManager
 
 import core.tfidf as tfidf
 
-# chưa sửaS
+dbm = DatabaseManager()
 app = FastAPI(title="Movie Search")
 
 class SearchResult(BaseModel):

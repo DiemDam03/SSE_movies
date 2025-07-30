@@ -4,6 +4,9 @@ import pandas as pd
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import core.tfidf as tfidf
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CSV_PATH = os.path.join(BASE_DIR, "movies.csv")

@@ -1,9 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
-from database.db import DatabaseManager as dbm
+from database.db import DatabaseManager
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-
+dbm = DatabaseManager()
 app = FastAPI(title="CRUD")
 
 class Movie(BaseModel):
