@@ -305,8 +305,3 @@ class DatabaseManager:
         conn.close()
         
         self.sync_postgres_and_milvus()
-
-dbm = DatabaseManager()
-
-if __name__ == "__main__":
-    dbm.initialize_database()
