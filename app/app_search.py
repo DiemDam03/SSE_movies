@@ -2,6 +2,8 @@ from fastapi import FastAPI, Query
 from pydantic import BaseModel
 from typing import List
 import database.db as db
+from database.db import DatabaseManager as dbm
+
 import core.tfidf as tfidf
 
 # chưa sửaS
@@ -14,7 +16,7 @@ class SearchResult(BaseModel):
 
 @app.get("/search", response_model=List[SearchResult])
 def search_movies(q: str = Query(...), top_k: int = 5):
-    vector_store = db.loading_vectors()
+    vector_store = dbm.loading_vectors_from_milvus()
     corpus_texts = [item["text"] for item in vector_store]
     idf_dict = tfidf.compute_idf_single(corpus_texts)
     
