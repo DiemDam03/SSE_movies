@@ -6,66 +6,91 @@ from psycopg2.extras import RealDictCursor
 import core.tfidf as tfidf
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-# MILVUS_DATABASE_PATH = os.path.join(BASE_DIR, "milvus.db")
 CSV_PATH = os.path.join(BASE_DIR, "movies.csv")
 
 COLLECTION_NAME = "movie_search"
 
+class DatabaseManager:
+    def __init__(self):
+        self.idf_dict = None # dùng để lưu cache, giảm tải tính toán
+        pass
+
+    def connect_to_milvus():
+        return connections.connect(
+            alias = "default",
+            host = "localhost",
+            port = "19530"
+        ) 
+
+    def connect_to_postgres():
+        return psycopg2.connect(
+            host=os.getenv("POSTGRES_HOST", "localhost"),
+            port=os.getenv("POSTGRES_PORT", 5432),
+            dbname=os.getenv("POSTGRES_DB", "movies"),
+            user=os.getenv("POSTGRES_USER", "postgres"),
+            password=os.getenv("POSTGRES_PASSWORD", "password")
+        )
+
+    def create_postgres_table(self): # có cần trigger update?
+
+        conn = self.connect_to_postgres()
+        cursor = conn.cursor()    
+
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS movies (
+                movieId INTEGER PRIMARY KEY,
+                title VARCHAR(500) NOT NULL,
+                genres VARCHAR(200)
+            )
+        ''')
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    def create_milvus_collection(self): # có cần index vì không dùng search của milvus?
+        self.connect_to_milvus()
+        fields = [
+            FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
+            FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=500),
+            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=1000)
+            ]
+        schema = CollectionSchema(fields, "Movies collection")
+
+        if utility.has_collection(COLLECTION_NAME):
+            utility.drop_collection(COLLECTION_NAME)
+        
+        collection = Collection(COLLECTION_NAME, schema)
+
+        # index_params = {
+        #     "metric_type": "COSINE",
+        #     "index_type": "IVF_FLAT",
+        #     "params": {"nlist": 128}
+        #     }
+        
+        # collection.create_index("vector", index_params)
+
+        return collection
+
+    def update_dict_after_crud(self): # update 1 dòng? update toàn bộ?  
+        pass
+    def sync_postgres_and_milvus(self):
+        pass
+
+
+dbm = DatabaseManager()
+
 def connect_to_milvus():
-    return connections.connect(
-        alias = "default",
-        host = "localhost",
-        port = "19530"
-    ) 
+    return dbm.connect_to_milvus()
 
 def connect_to_postgres():
-    return psycopg2.connect(
-        host=os.getenv("POSTGRES_HOST", "localhost"),
-        port=os.getenv("POSTGRES_PORT", 5432),
-        dbname=os.getenv("POSTGRES_DB", "movies"),
-        user=os.getenv("POSTGRES_USER", "postgres"),
-        password=os.getenv("POSTGRES_PASSWORD", "password")
-    )
+    return dbm.connect_to_postgres()
 
 def create_postgres_table():
-    conn = connect_to_postgres()
-    cursor = conn.cursor()    
-
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS movies (
-            movieId INTEGER PRIMARY KEY,
-            title VARCHAR(500) NOT NULL,
-            genres VARCHAR(200)
-        )
-    ''')
-
-    conn.commit()
-    cursor.close()
-    conn.close()
+    return dbm.create_postgres_table()
 
 def create_milvus_collection():
-    connect_to_milvus()
-    fields = [
-        FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=True),
-        FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=500),
-        FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=1000)
-        ]
-    schema = CollectionSchema(fields, "Movies collection")
-
-    if utility.has_collection(COLLECTION_NAME):
-        utility.drop_collection(COLLECTION_NAME)
-    
-    collection = Collection(COLLECTION_NAME, schema)
-
-    # index_params = {
-    #     "metric_type": "COSINE",
-    #     "index_type": "IVF_FLAT",
-    #     "params": {"nlist": 128}
-    #     }
-    
-    # collection.create_index("vector", index_params)
-
-    return collection
+    return dbm.create_milvus_collection()
 
 def convert_csv_to_postgres():
     df = pd.read_csv(CSV_PATH)
@@ -138,7 +163,7 @@ def storing_vectors():
     vectors = generate_vectors(dataset)
     movie_indices = list(range(len(vectors)))
 
-    connect_to_milvus()
+    dbm.connect_to_milvus()
     collection = Collection(COLLECTION_NAME)
     
     entities = [movie_indices, vectors]
@@ -149,11 +174,32 @@ def storing_metadata_to_postgres():
     pass
 
 def loading_vectors_from_milvus():
-    pass
+    collection = connect_to_milvus()
+    collection.load()
+
+    # chưa xong 
+    # return collection 
 
 def loading_metadata_from_postgres():
+    conn = connect_to_postgres()
+    cursor = conn.cursor(cursor_factory=RealDictCursor)
+
+    cursor.execute("SELECT movieId, title, genres FROM movies ORDER BY movieId")
+    movies = {row['movieid']: f"{row['title']} | {row['genres'] or ''}" for row in cursor.fetchall()}
+    
+    cursor.close()
+    conn.close()
+    return movies
+
+def initialize_database():
+
+    # connect milvus
+    # connect postgres
+    # gen vectors
+    # store vectors
     pass
 
+#crud chưa sync postgres và milvus, chưa update dict 
 def get_all_movies():
     conn = connect_to_postgres()
     cursor = conn.cursor()
@@ -211,3 +257,5 @@ def delete_movie(movie_id: int):
     conn.close()
 
 
+if __name__ == "__main__":
+    initialize_database()

@@ -1,9 +1,9 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import List
-import db
+import database.db as db
 
-
+# chưa sửa
 app = FastAPI(title="CRUD")
 
 class Movie(BaseModel):
