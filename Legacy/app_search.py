@@ -1,9 +1,14 @@
+
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from fastapi import FastAPI, Query
 from pydantic import BaseModel
 from typing import List
 from db import dbm
 from pymilvus import Collection
-import tfidf
+import Legacy.tfidf as tfidf
 
 app = FastAPI(title="Movie Search")
 

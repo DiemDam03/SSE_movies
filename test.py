@@ -10,7 +10,3 @@ def movie_dataset_processing(source = CSV_PATH):
     movie['text'] = movie['title'] + ' | ' + movie['genres'] # Combine title and genres into a single text column
     corpus = movie['text'].tolist() 
     return corpus
-
-corpus = movie_dataset_processing()
-a = dbm.get_unique_words_for_vector_dim(corpus)
-print(len(a))
