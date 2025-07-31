@@ -1,3 +1,4 @@
+version: '3.8'
 
 services:
   postgres:
@@ -57,6 +58,7 @@ services:
     image: milvusdb/milvus:v2.3.4
     command: ["milvus", "run", "standalone"]
     environment:
+      MILVUS_HOST: milvus
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
     volumes:

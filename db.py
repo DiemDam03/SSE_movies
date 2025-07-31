@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import core.tfidf as tfidf
+import tfidf as tfidf
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -24,7 +24,7 @@ class DatabaseManager:
         return connections.connect(
             alias="default",
             host="localhost",
-            port="19530"
+            port=19530
         ) 
 
     @staticmethod
@@ -108,14 +108,14 @@ class DatabaseManager:
         self.unique_words = self.get_unique_words_for_vector_dim(corpus)
 
     def sync_postgres_and_milvus(self):
-        self.update_dict_after_crud()
+        self.update_dict_after_crud() # sao lại update trước khi sync
         
         self.connect_to_milvus()
         if utility.has_collection(COLLECTION_NAME):
             collection = Collection(COLLECTION_NAME)
-            collection.drop()
+            collection.drop() # drop hoàn toàn ko add vào thêm? cost nhiều
         
-        self.create_milvus_collection()
+        self.create_milvus_collection() 
         self.storing_vectors()
 
     def movie_dataset_processing_from_postgres(self):
@@ -143,14 +143,14 @@ class DatabaseManager:
         tfidf_all = tfidf.compute_tfidf_all(tf_all, idf_dict)
         return dataset, tfidf_all, idf_dict
 
-    def get_unique_words_for_vector_dim(self, corpus: list[str]):
+    def get_unique_words_for_vector_dim(self, corpus: list[str])->list[str]:
         unique_words = set()
         for doc in corpus:
             vocab = tfidf.create_vocab_single(doc)
             unique_words.update(vocab.keys())  
         return sorted(list(unique_words))
-
-    def converting_tfidf_to_fixed_dim_vector(self, tfidf_dict: dict, unique_words):
+    
+    def converting_tfidf_to_fixed_dim_vector(self, tfidf_dict: dict, unique_words: list[str])->list[float]:
         vector = [0.0] * len(unique_words)
         word_to_index = {word: i for i, word in enumerate(unique_words)}
         for word, value in tfidf_dict.items():
@@ -158,7 +158,7 @@ class DatabaseManager:
                 vector[word_to_index[word]] = value
         return vector
 
-    def generate_vectors(self, corpus):
+    def generate_vectors(self, corpus: list[str]):
         _, tfidf_all, _ = self.generate_tfidf()
         unique_words = self.get_unique_words_for_vector_dim(corpus)
         modified_vectors = [
@@ -185,20 +185,40 @@ class DatabaseManager:
         movie_ids = [row['movieid'] for row in rows]
         texts = [f"{row['title']} | {row['genres'] or ''}" for row in rows]
         
-        entities = [ids, movie_ids, texts, vectors]
-        collection.insert(entities)
+        batch_size = 50
+        for i in range(0, len(vectors), batch_size):
+            batch_entities = [
+                ids[i:i+batch_size],
+                movie_ids[i:i+batch_size],
+                texts[i:i+batch_size],
+                vectors[i:i+batch_size],
+            ]
+            collection.insert(batch_entities)
+
         collection.flush()
+
+        collection.create_index(
+            field_name="vector",
+            index_params={
+                "metric_type": "COSINE",
+                "index_type": "IVF_FLAT",
+                "params": {"nlist": 128}
+            }
+        )
 
     def loading_vectors_from_milvus(self):
         self.connect_to_milvus()
         collection = Collection(COLLECTION_NAME)
         collection.load()
         
-        results = collection.query(
-            expr="id >= 0",
-            output_fields=["id", "movieId", "text", "vector"]
-        )
-        return results
+        all_results = []
+        batch_size = 50
+        total = collection.num_entities
+        for offset in range(0, total, batch_size):
+            expr = f"id >= {offset} and id < {offset + batch_size}"
+            results = collection.query(expr=expr, output_fields=["id", "movieId", "text", "vector"])
+            all_results.extend(results)
+        return all_results
 
     def loading_metadata_from_postgres(self):
         conn = self.connect_to_postgres()
