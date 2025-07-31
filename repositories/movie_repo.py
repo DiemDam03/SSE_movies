@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from models.crud_model import Movie
+from models.movie_model import Movie
 from typing import List, Optional
 
-class CRUD(ABC):
+class MovieREPO(ABC):
     @abstractmethod
     def get_all_movies(self) -> List[Movie]:
         pass

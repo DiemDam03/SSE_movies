@@ -1,6 +1,6 @@
 from Legacy.db import DatabaseManager
-from models.interfaces.icrud import CRUD
-from models.crud_model import Movie
+from repositories.movie_repo import CRUD
+from models.movie_model import Movie
 from typing import List, Optional
 
 dbm = DatabaseManager()
