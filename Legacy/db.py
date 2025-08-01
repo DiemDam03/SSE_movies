@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import psycopg2
 from psycopg2.extras import RealDictCursor
-import Legacy.tfidf as tfidf
+import dependencies.tfidf as tfidf
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))

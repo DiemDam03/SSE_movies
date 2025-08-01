@@ -8,7 +8,7 @@ from pydantic import BaseModel
 from typing import List
 from db import dbm
 from pymilvus import Collection
-import Legacy.tfidf as tfidf
+import dependencies.tfidf as tfidf
 
 app = FastAPI(title="Movie Search")
 

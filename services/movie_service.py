@@ -1,26 +1,28 @@
-from Legacy.db import DatabaseManager
-from repositories.movie_repo import CRUD
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from models.movie_model import Movie
 from typing import List, Optional
+from repositories.movie_repo import MovieREPO
 
-dbm = DatabaseManager()
+movieRepo = MovieREPO()
 
-class CRUDService:
+class MovieService:
     def get_all_movies(self) -> List[Movie]:
-        return dbm.get_all_movies()
+        return movieRepo.get_all_movies()
 
     def get_movie_by_id(self, movie_id: int) -> Optional[Movie]:
-        movie = dbm.get_movie_by_id(movie_id)
+        movie = movieRepo.get_movie_by_id(movie_id)
         return movie
 
     def add_movie(self, movie: Movie) -> None:
-        dbm.insert_movie(movie.model_dump())
+        movieRepo.insert_movie(movie.model_dump())
         return {"message": "Movie added"}
 
     def update_movie(self, movie_id: int, movie: Movie) -> None:
-        dbm.update_movie(movie_id, movie.model_dump())
+        movieRepo.update_movie(movie_id, movie.model_dump())
         return {"message": "Movie updated"}
 
     def delete_movie(self, movie_id: int) -> None:
-        dbm.delete_movie(movie_id)
+        movieRepo.delete_movie(movie_id)
         return {"message": "Movie deleted"}
