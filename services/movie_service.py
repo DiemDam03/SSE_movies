@@ -3,7 +3,6 @@ import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from models.movie_model import Movie
-from models.movie_model import Movie
 from repositories.concrete.milvus_repo import MilvusREPO
 from repositories.concrete.postgres_repo import PostgresREPO
 from core.utilities import VectorHandler
@@ -36,7 +35,7 @@ class MovieService:
         return {"message": "Movie deleted"}
 
     def sync_with_milvus(self) -> None:
-        handler = VectorHandler(self.milvus_repo) #Vectorhandler làm gì có () mà truyền vào
+        handler = VectorHandler(self.postgres_repo) #Vectorhandler làm gì có () mà truyền vào
         
         corpus = self.postgres_repo.loading_data_from_postgres(self)
         vectors, unique_words = handler.generate_vectors(corpus)
@@ -53,5 +52,4 @@ class MovieService:
         conn.close()
 
         self.milvus_repo.store_vectors_to_milvus(vectors, movie_data)
-
 

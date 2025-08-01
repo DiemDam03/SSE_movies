@@ -4,8 +4,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import core.tfidf as tfidf
 
-class VectorHandler():
-    def get_unique_words_for_vector_dim(self, corpus: list[str])->list[str]:
+class VectorHandler:
+    def get_unique_words(self, corpus: list[str])->list[str]:
         unique_words = set()
         for doc in corpus:
             vocab = tfidf.create_vocab_single(doc)
@@ -29,7 +29,7 @@ class VectorHandler():
 
     def generate_vectors(self, corpus: list[str]) -> tuple[list[list[float]], list[str]]:
         tfidf_all, _ = self.generate_tfidf(corpus)
-        unique_words = self.get_unique_words_for_vector_dim(corpus)
+        unique_words = self.get_unique_words(corpus)
         modified_vectors = [
             self.converting_tfidf_to_fixed_dim_vector(tfidf_dict, unique_words)
             for tfidf_dict in tfidf_all

@@ -92,6 +92,10 @@ class PostgresREPO(MovieREPO):
         conn.close()
         return movies
 
+    def update_postgres(): #cần để update unique words? idf_dict? wait unique word với idf dict là của search, 
+                            #nó có là của milvus, lưu vào milvus?
+        pass
+
     def get_all_movies(self) -> list[Movie]:
         conn = self.connect_to_postgres()
         cursor = conn.cursor(cursor_factory=RealDictCursor)

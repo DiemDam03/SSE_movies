@@ -87,7 +87,7 @@ class MilvusREPO(VectorREPO):
 
         return all_results
 
-    def search_top_k_movie(self, query_vector: str, top_k: int) -> list[SearchResult]:
+    def search_top_k_movie(self, query_vector: list[float], top_k: int) -> list[SearchResult]:
         self.connect_to_milvus()
         collection = Collection("movie_collection")
         collection.load()
