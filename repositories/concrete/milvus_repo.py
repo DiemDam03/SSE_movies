@@ -4,14 +4,14 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from pymilvus import DataType, Collection, connections, CollectionSchema, FieldSchema, utility
 from repositories.interfaces.vector_repo import VectorREPO
 from repositories.concrete.postgres_repo import PostgresREPO
-from dependencies.utilities import uitilies
+from dependencies.utilities import utilities
 from typing import List, Optional
 from psycopg2.extras import RealDictCursor
 
 
 COLLECTION_NAME = "movie_collection"
 
-utilities = uitilies()
+uti = utilities()
 pg = PostgresREPO()
 
 class MilvusREPO(VectorREPO):
@@ -30,8 +30,8 @@ class MilvusREPO(VectorREPO):
         self.connect_to_milvus()
 
         if self.unique_words is None: # cần xem lại cái unique word là của ai
-            corpus = utilities.movie_dataset_processing_from_postgres()
-            unique_words = utilities.get_unique_words_for_vector_dim(corpus)
+            corpus = uti.movie_dataset_processing_from_postgres()
+            unique_words = uti.get_unique_words_for_vector_dim(corpus)
 
         dim = len(unique_words)
 

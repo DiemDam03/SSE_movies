@@ -6,7 +6,11 @@ from typing import List, Optional
 from models.movie_model import Movie
 
 
-class MovieService(VectorREPO):
+class SearchService(VectorREPO):
     def search_top_k_movie(self, query: List[float], top_k: int) -> List[Movie]:
         # chưa implelment
-        pass
+        return self.search_top_k_movie(self, query, top_k)
+    
+    def filter_by_genre(self, genre: str):
+        # chưa implement
+        return self.filter_by_genre(self, genre)

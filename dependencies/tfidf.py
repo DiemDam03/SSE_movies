@@ -1,7 +1,7 @@
 import re
 import math
-from numpy import dot
-from numpy.linalg import norm
+# from numpy import dot
+# from numpy.linalg import norm
 
 def create_tokens_single(doc: str) -> list[str]:
   tokens = doc.lower()

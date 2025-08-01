@@ -1,8 +1,8 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from repositories.postgres_repo import PostgresREPO
-from repositories.milvus_repo import MilvusREPO
+from repositories.concrete.postgres_repo import PostgresREPO
+from repositories.concrete.milvus_repo import MilvusREPO
 from psycopg2.extras import RealDictCursor
 import dependencies.tfidf as tfidf
 
@@ -11,7 +11,7 @@ pg = PostgresREPO()
 #cần xem lại các func nên thuộc về ai
 #utilities là dependency?
 
-class uitilies:
+class utilities:
     def movie_dataset_processing_from_postgres(self):
         conn = pg.connect_to_postgres()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -35,6 +35,8 @@ class uitilies:
             vocab = tfidf.create_vocab_single(doc)
             unique_words.update(vocab.keys())  
         return sorted(list(unique_words))
+            #nên thuộc tfidf?
+
 
     def generate_tfidf(self):
         dataset = self.movie_dataset_processing_from_postgres()
@@ -43,6 +45,8 @@ class uitilies:
         idf_dict = tfidf.compute_idf_single(dataset)
         tfidf_all = tfidf.compute_tfidf_all(tf_all, idf_dict)
         return dataset, tfidf_all, idf_dict
+            #nên thuộc tfidf?
+
     
     def converting_tfidf_to_fixed_dim_vector(self, tfidf_dict: dict, unique_words: list[str])->list[float]:
         vector = [0.0] * len(unique_words)
@@ -59,15 +63,18 @@ class uitilies:
             self.converting_tfidf_to_fixed_dim_vector(tfidf_dict, unique_words)
             for tfidf_dict in tfidf_all
         ]
-        return modified_vectors
-    
+        return modified_vectors 
+
     def invalidate_cache(self):
         self.idf_dict = None
         self.unique_words = None
         self._corpus_cache = None
+        #ko dùng self được
 
     def update_dict_after_crud(self):
         self.invalidate_cache()
         corpus = self.movie_dataset_processing_from_postgres()
         _, _, self.idf_dict = self.generate_tfidf()
         self.unique_words = self.get_unique_words_for_vector_dim(corpus)
+        #ko dùng self được
+        #nên thuộc tfidf?

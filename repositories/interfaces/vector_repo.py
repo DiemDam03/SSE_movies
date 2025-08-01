@@ -24,3 +24,6 @@ class VectorREPO(ABC):
     # @abstractmethod
     # def delete_vector(self, movie_id: int) -> None:
     #     pass
+    @abstractmethod
+    def filter_by_genre(self, genre: str) -> List[float]:
+        pass
