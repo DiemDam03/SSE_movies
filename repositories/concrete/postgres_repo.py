@@ -1,16 +1,12 @@
-
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from repositories.interfaces.movie_repo import MovieREPO
-from typing import List, Optional
-from psycopg2.extras import RealDictCursor
-import psycopg2
-import os
-import pandas as pd
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-CSV_PATH = os.path.join(BASE_DIR, "movies.csv")
+from repositories.interfaces.movie_repo import MovieREPO
+from models.movie_model import Movie
+import psycopg2
+from psycopg2.extras import RealDictCursor
+import pandas as pd
 
 class PostgresREPO(MovieREPO):
     def __init__(self) -> None:
@@ -61,11 +57,11 @@ class PostgresREPO(MovieREPO):
         cursor.close()
         conn.close()
 
-    def transfer_data_from_csv_to_postgres(self):
-        if not os.path.exists(CSV_PATH):
-            raise FileNotFoundError(f"CSV file not found: {CSV_PATH}")
+    def transfer_data_from_csv_to_postgres(self, csv_path) -> None:
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"CSV file not found: {csv_path}")
             
-        df = pd.read_csv(CSV_PATH)
+        df = pd.read_csv(csv_path)
         conn = self.connect_to_postgres()
         cursor = conn.cursor()
 
@@ -80,15 +76,8 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
-        
-        self.idf_dict = None
-        self.unique_words = None
-        self._corpus_cache = None
 
-    # def save_to_postgres():
-    #     pass
-
-    def loading_metadata_from_postgres(self):
+    def loading_data_from_postgres(self) -> list[str]:
         conn = self.connect_to_postgres()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
@@ -103,5 +92,60 @@ class PostgresREPO(MovieREPO):
         conn.close()
         return movies
 
-    def update_postgres():
-        pass
+    def get_all_movies(self) -> list[Movie]:
+        conn = self.connect_to_postgres()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT movieId, title, genres FROM movies ORDER BY movieId")
+        movies = [{"id": row['movieid'], "title": row['title'], "genres": row['genres']} 
+                 for row in cursor.fetchall()]
+
+        cursor.close()
+        conn.close()
+        return movies
+    
+    def get_movie_by_id(self, movie_id: int) -> Movie:
+        conn = self.connect_to_postgres()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute("SELECT movieId, title, genres FROM movies WHERE movieId = %s", (movie_id,))
+        row = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if row:
+            return {"id": row['movieid'], "title": row['title'], "genres": row['genres']}
+        return None
+    
+    def add_movie(self, movie: dict) -> None:
+        conn = self.connect_to_postgres()
+        cursor = conn.cursor()
+
+        cursor.execute("INSERT INTO movies (movieId, title, genres) VALUES (%s, %s, %s)", 
+                      (movie["id"], movie["title"], movie["genres"]))
+                      
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+    def update_movie(self, movie_id: int, movie: dict) -> None:
+        conn = self.connect_to_postgres()
+        cursor = conn.cursor()
+
+        cursor.execute("UPDATE movies SET title = %s, genres = %s WHERE movieId = %s", 
+                      (movie["title"], movie["genres"], movie_id))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+    
+    def delete_movie(self, movie_id: int) -> None:
+        conn = self.connect_to_postgres()
+        cursor = conn.cursor()
+
+        cursor.execute("DELETE FROM movies WHERE movieId = %s", (movie_id,))
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+

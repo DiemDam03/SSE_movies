@@ -1,45 +1,39 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from pymilvus import DataType, Collection, connections, CollectionSchema, FieldSchema, utility
 from repositories.interfaces.vector_repo import VectorREPO
-from repositories.concrete.postgres_repo import PostgresREPO
-from dependencies.utilities import utilities
-from typing import List, Optional
-from psycopg2.extras import RealDictCursor
-
+from models.movie_model import Movie
+from models.search_result_model import SearchResult
 
 COLLECTION_NAME = "movie_collection"
 
-uti = utilities()
-pg = PostgresREPO()
-
 class MilvusREPO(VectorREPO):
-    def __init__(self):
+    def __init__(self) -> None:
         self.collection_name = COLLECTION_NAME
-        self.unique_words = None
 
-    def connect_to_milvus():
+    def connect_to_milvus() -> None:
         return connections.connect(
             alias="default",
             host="localhost",
             port=19530
         ) 
 
-    def create_collection(self):
+    def create_collection(self, vector_dim: int) -> None:
         self.connect_to_milvus()
 
-        if self.unique_words is None: # cần xem lại cái unique word là của ai
-            corpus = uti.movie_dataset_processing_from_postgres()
-            unique_words = uti.get_unique_words_for_vector_dim(corpus)
+        # if self.unique_words is None: # cần xem lại cái unique word là của ai
+        #     corpus = uti.movie_dataset_processing_from_postgres()
+        #     unique_words = uti.get_unique_words_for_vector_dim(corpus)
 
-        dim = len(unique_words)
+        # dim = len(unique_words)
 
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
             FieldSchema(name="movieId", dtype=DataType.INT64),
             FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=1000),
-            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=dim)
+            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=vector_dim)
         ]
         schema = CollectionSchema(fields, "Movies collection for TF-IDF search")
 
@@ -49,23 +43,13 @@ class MilvusREPO(VectorREPO):
         collection = Collection(COLLECTION_NAME, schema)
         return collection
 
-    def store_vectors_to_milvus(self):
-        dataset = utilities.movie_dataset_processing_from_postgres()
-        vectors = utilities.generate_vectors(dataset)
-        
-        conn = pg.connect_to_postgres()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT movieId, title, genres FROM movies ORDER BY movieId")
-        rows = cursor.fetchall()
-        cursor.close()
-        conn.close()
-
+    def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None:        
         self.connect_to_milvus()
         collection = Collection(COLLECTION_NAME)
         
         ids = list(range(len(vectors)))
-        movie_ids = [row['movieid'] for row in rows]
-        texts = [f"{row['title']} | {row['genres'] or ''}" for row in rows]
+        movie_ids = [data['movieid'] for data in movie_data]
+        texts = [f"{data['title']} | {data['genres'] or ''}" for data in movie_data]
         
         batch_size = 50
         for i in range(0, len(vectors), batch_size):
@@ -78,7 +62,6 @@ class MilvusREPO(VectorREPO):
             collection.insert(batch_entities)
 
         collection.flush()
-
         collection.create_index(
             field_name="vector",
             index_params={
@@ -88,7 +71,7 @@ class MilvusREPO(VectorREPO):
             }
         )
 
-    def load_vectors_from_milvus(self):
+    def load_vectors_from_milvus(self) -> list[Movie]:
         self.connect_to_milvus()
         collection = Collection(COLLECTION_NAME)
         collection.load()
@@ -96,8 +79,31 @@ class MilvusREPO(VectorREPO):
         all_results = []
         batch_size = 50
         total = collection.num_entities
+
         for offset in range(0, total, batch_size):
             expr = f"id >= {offset} and id < {offset + batch_size}"
             results = collection.query(expr=expr, output_fields=["id", "movieId", "text", "vector"])
             all_results.extend(results)
+
         return all_results
+
+    def search_top_k_movie(self, query_vector: str, top_k: int) -> list[SearchResult]:
+        self.connect_to_milvus()
+        collection = Collection("movie_collection")
+        collection.load()
+
+        results = collection.search(
+            data=[query_vector],
+            anns_field="vector",
+            param={"metric_type": "COSINE", "params": {"nprobe": 10}},
+            limit=top_k,
+            output_fields=["id", "movieId", "text"]
+        )
+
+        top_hits = results[0]
+        response = [
+            SearchResult(index=hit.id, score=hit.distance, text=hit.entity.get("text"))
+            for hit in top_hits
+        ]
+
+        return response

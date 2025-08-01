@@ -2,28 +2,26 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from abc import ABC, abstractmethod
+from models.search_result_model import SearchResult
 from models.movie_model import Movie
-from typing import List, Optional
+
 
 class VectorREPO(ABC):
     @abstractmethod
-    def search_top_k_movie(self, query: List[float], top_k: int) -> List[Movie]:
+    def connect_to_milvus(self) -> None:
+        pass
+    @abstractmethod
+    def create_collection(self) -> None:
+        pass
+    @abstractmethod
+    def search_top_k_movie(self, query: list[float], top_k: int) -> list[SearchResult]:
         pass
     @abstractmethod
     def store_vectors_to_milvus(self) -> None:
         pass
     @abstractmethod
-    def load_vectors_from_milvus(self) -> List[float]:
+    def load_vectors_from_milvus(self) -> list[Movie]:
         pass
     # @abstractmethod
-    # def add_vector(self, movie_id: int,  movie: Movie) -> None:
+    # def filter_by_genre(self, genre: str) -> list[float]:
     #     pass
-    # @abstractmethod
-    # def update_vector(self, movie_id: int, movie: Movie) -> None:
-    #     pass
-    # @abstractmethod
-    # def delete_vector(self, movie_id: int) -> None:
-    #     pass
-    @abstractmethod
-    def filter_by_genre(self, genre: str) -> List[float]:
-        pass
