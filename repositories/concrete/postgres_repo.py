@@ -2,7 +2,7 @@
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from repositories.movie_repo import MovieREPO
+from repositories.interfaces.movie_repo import MovieREPO
 from typing import List, Optional
 from psycopg2.extras import RealDictCursor
 import psycopg2

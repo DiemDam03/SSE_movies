@@ -61,3 +61,13 @@ class uitilies:
         ]
         return modified_vectors
     
+    def invalidate_cache(self):
+        self.idf_dict = None
+        self.unique_words = None
+        self._corpus_cache = None
+
+    def update_dict_after_crud(self):
+        self.invalidate_cache()
+        corpus = self.movie_dataset_processing_from_postgres()
+        _, _, self.idf_dict = self.generate_tfidf()
+        self.unique_words = self.get_unique_words_for_vector_dim(corpus)

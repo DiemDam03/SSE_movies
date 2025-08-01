@@ -2,8 +2,8 @@ import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from pymilvus import DataType, Collection, connections, CollectionSchema, FieldSchema, utility
-from repositories.vector_repo import VectorREPO
-from repositories.postgres_repo import PostgresREPO
+from repositories.interfaces.vector_repo import VectorREPO
+from repositories.concrete.postgres_repo import PostgresREPO
 from dependencies.utilities import uitilies
 from typing import List, Optional
 from psycopg2.extras import RealDictCursor
