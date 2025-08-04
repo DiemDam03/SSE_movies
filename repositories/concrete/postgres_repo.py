@@ -134,7 +134,7 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
-        self.clear_cache
+        self.clear_cache()
 
     def update_movie(self, movie_id: int, movie: dict) -> None:
         conn = self.connect_to_postgres()
@@ -146,7 +146,7 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
-        self.clear_cache
+        self.clear_cache()
     
     def delete_movie(self, movie_id: int) -> None:
         conn = self.connect_to_postgres()
@@ -157,6 +157,4 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
-        self.clear_cache
-
-
+        self.clear_cache()

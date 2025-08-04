@@ -12,13 +12,19 @@ COLLECTION_NAME = "movie_collection"
 class MilvusREPO(VectorREPO):
     def __init__(self) -> None:
         self.collection_name = COLLECTION_NAME
+        self.host = os.getenv("MILVUS_HOST", "localhost")
+        self.port = int(os.getenv("MILVUS_PORT", "19530"))
 
     def connect_to_milvus(self) -> None:
-        return connections.connect(
-            alias="default",
-            host="localhost",
-            port=19530
-        ) 
+        try:
+            return connections.connect(
+                alias="default",
+                host=self.host,
+                port=self.port
+            )
+        except Exception as e:
+            print(f"Failed to connect to Milvus at {self.host}:{self.port}. Error: {e}")
+            raise
 
     def create_collection(self, vector_dim: int) -> None:
         self.connect_to_milvus()

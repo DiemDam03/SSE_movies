@@ -58,9 +58,10 @@ services:
     image: milvusdb/milvus:v2.3.4
     command: ["milvus", "run", "standalone"]
     environment:
-      MILVUS_HOST: milvus
       ETCD_ENDPOINTS: etcd:2379
       MINIO_ADDRESS: minio:9000
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
     volumes:
       - milvus_data:/var/lib/milvus
     healthcheck:
@@ -72,10 +73,7 @@ services:
     ports:
       - "19530:19530"
       - "9091:9091"
-    depends_on:
-      - "etcd"
-      - "minio"
-
+      
 volumes:
   postgres_data:
   etcd_data:
