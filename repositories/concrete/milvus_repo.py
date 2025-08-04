@@ -13,7 +13,7 @@ class MilvusREPO(VectorREPO):
     def __init__(self) -> None:
         self.collection_name = COLLECTION_NAME
 
-    def connect_to_milvus() -> None:
+    def connect_to_milvus(self) -> None:
         return connections.connect(
             alias="default",
             host="localhost",
@@ -42,7 +42,7 @@ class MilvusREPO(VectorREPO):
         collection = Collection(self.collection_name)
         
         ids = list(range(len(vectors)))
-        movie_ids = [data['movieid'] for data in movie_data]
+        movie_ids = [data['id'] for data in movie_data]
         texts = [f"{data['title']} | {data['genres'] or ''}" for data in movie_data]
         
         batch_size = 50

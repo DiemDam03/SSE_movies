@@ -107,6 +107,10 @@ class PostgresREPO(MovieREPO):
             for row in movies
         ]
     
+    def get_corpus(self):
+        movies = self._fetch_data()
+        return [f"{row['title']} | {row['genres'] or ''}" for row in movies]
+    
     def get_movie_by_id(self, movie_id: int) -> Movie:
         conn = self.connect_to_postgres()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -155,6 +159,4 @@ class PostgresREPO(MovieREPO):
         conn.close()
         self.clear_cache
 
-    # def update_postgres(): #cần để update unique words? idf_dict? wait unique word với idf dict là của search, 
-    #                         #nó có là của milvus, lưu vào milvus?
 

@@ -1,7 +1,5 @@
 import re
 import math
-# from numpy import dot
-# from numpy.linalg import norm
 
 def create_tokens_single(doc: str) -> list[str]:
   tokens = doc.lower()
@@ -59,35 +57,3 @@ def compute_tfidf_all(tf_list: list[dict], idf_dict: dict) -> list[dict]:
 
 def compute_tfidf_single(tf_dict: dict, idf_dict: dict) -> dict:
     return {word: tf_dict[word] * idf_dict.get(word, 0.0) for word in tf_dict}
-
-# def cosine_similarity(vec1: dict, vec2: dict) -> float:
-#     common_words = set(vec1.keys()) & set(vec2.keys())
-#     dot_product = sum(vec1[word] * vec2[word] for word in common_words)
-#     norm1 = math.sqrt(sum(val**2 for val in vec1.values()))
-#     norm2 = math.sqrt(sum(val**2 for val in vec2.values()))
-#     if norm1 == 0 or norm2 == 0:
-#         return 0.0
-#     return dot_product / (norm1 * norm2)
-
-# def cosine_similarity_array(vec1: list[float], vec2: list[float]) -> float:
-#     if norm(vec1) == 0 or norm(vec2) == 0:
-#         return 0.0
-#     return float(dot(vec1, vec2) / (norm(vec1) * norm(vec2)))
-
-# def ranking_vector(query_vector: list[float], vector_list: list[list[float]], top_k: int) -> list[tuple[int, float]]:
-#     scores = []
-#     for i, doc_vector in enumerate(vector_list):
-#         score = cosine_similarity_array(query_vector, doc_vector)
-#         scores.append((i, score))
-#     scores.sort(key=lambda x: x[1], reverse=True)
-#     return scores[:top_k]
-
-# def ranking(query_tfidf: dict, tfidf_list: list[dict], top_k: int) -> list[tuple[int, float]]:
-#     scores = []
-#     for i, doc_tfidf in enumerate(tfidf_list):
-#         score = cosine_similarity(query_tfidf, doc_tfidf)
-#         scores.append((i, score))
-#     scores.sort(key=lambda x: x[1], reverse=True)
-#     return scores[:top_k]
-
-
