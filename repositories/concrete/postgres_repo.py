@@ -17,6 +17,10 @@ class PostgresREPO(MovieREPO):
             'user': os.getenv("POSTGRES_USER", "postgres"),
             'password': os.getenv("POSTGRES_PASSWORD", "password")
         }
+        self._cache = None
+
+    def clear_cache(self):
+        self._cache = None
 
     def connect_to_postgres(self) -> None:
         return psycopg2.connect(**self.connection_params)
@@ -77,35 +81,31 @@ class PostgresREPO(MovieREPO):
         cursor.close()
         conn.close()
 
-    def loading_data_from_postgres(self) -> list[str]:
+    def _fetch_data(self) -> list[dict]:
+        if self._cache is not None:
+            return self._cache
+        
         conn = self.connect_to_postgres()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-
         cursor.execute("SELECT movieId, title, genres FROM movies ORDER BY movieId")
-        movies = {row['movieid']: {
-            'title': row['title'],
-            'genres': row['genres'] or '',
-            'text': f"{row['title']} | {row['genres'] or ''}"
-        } for row in cursor.fetchall()}
-        
+        data = cursor.fetchall()
+    
         cursor.close()
-        conn.close()
-        return movies
+        conn.close()    
 
-    def update_postgres(): #cần để update unique words? idf_dict? wait unique word với idf dict là của search, 
-                            #nó có là của milvus, lưu vào milvus?
-        pass
+        self._cache = data 
+        return data
 
     def get_all_movies(self) -> list[Movie]:
-        conn = self.connect_to_postgres()
-        cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute("SELECT movieId, title, genres FROM movies ORDER BY movieId")
-        movies = [{"id": row['movieid'], "title": row['title'], "genres": row['genres']} 
-                 for row in cursor.fetchall()]
-
-        cursor.close()
-        conn.close()
-        return movies
+        movies = self._fetch_data()
+        return [
+            {
+                "id": row['movieid'], 
+                "title": row['title'], 
+                "genres": row['genres'] or ''
+            }
+            for row in movies
+        ]
     
     def get_movie_by_id(self, movie_id: int) -> Movie:
         conn = self.connect_to_postgres()
@@ -130,6 +130,7 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
+        self.clear_cache
 
     def update_movie(self, movie_id: int, movie: dict) -> None:
         conn = self.connect_to_postgres()
@@ -141,6 +142,7 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
+        self.clear_cache
     
     def delete_movie(self, movie_id: int) -> None:
         conn = self.connect_to_postgres()
@@ -151,5 +153,8 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
+        self.clear_cache
 
+    # def update_postgres(): #cần để update unique words? idf_dict? wait unique word với idf dict là của search, 
+    #                         #nó có là của milvus, lưu vào milvus?
 

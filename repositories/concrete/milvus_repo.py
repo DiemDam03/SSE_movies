@@ -23,12 +23,6 @@ class MilvusREPO(VectorREPO):
     def create_collection(self, vector_dim: int) -> None:
         self.connect_to_milvus()
 
-        # if self.unique_words is None: # cần xem lại cái unique word là của ai
-        #     corpus = uti.movie_dataset_processing_from_postgres()
-        #     unique_words = uti.get_unique_words_for_vector_dim(corpus)
-
-        # dim = len(unique_words)
-
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
             FieldSchema(name="movieId", dtype=DataType.INT64),
@@ -37,15 +31,15 @@ class MilvusREPO(VectorREPO):
         ]
         schema = CollectionSchema(fields, "Movies collection for TF-IDF search")
 
-        if utility.has_collection(COLLECTION_NAME):
-            utility.drop_collection(COLLECTION_NAME)
+        if utility.has_collection(self.collection_name):
+            utility.drop_collection(self.collection_name)
 
-        collection = Collection(COLLECTION_NAME, schema)
+        collection = Collection(self.collection_name, schema)
         return collection
 
     def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None:        
         self.connect_to_milvus()
-        collection = Collection(COLLECTION_NAME)
+        collection = Collection(self.collection_name)
         
         ids = list(range(len(vectors)))
         movie_ids = [data['movieid'] for data in movie_data]
@@ -73,7 +67,7 @@ class MilvusREPO(VectorREPO):
 
     def load_vectors_from_milvus(self) -> list[Movie]:
         self.connect_to_milvus()
-        collection = Collection(COLLECTION_NAME)
+        collection = Collection(self.collection_name)
         collection.load()
         
         all_results = []
@@ -92,7 +86,7 @@ class MilvusREPO(VectorREPO):
         collection = Collection("movie_collection")
         collection.load()
 
-        results = collection.search(
+        search_results = collection.search(
             data=[query_vector],
             anns_field="vector",
             param={"metric_type": "COSINE", "params": {"nprobe": 10}},
@@ -100,10 +94,10 @@ class MilvusREPO(VectorREPO):
             output_fields=["id", "movieId", "text"]
         )
 
-        top_hits = results[0]
-        response = [
+        top_hits = search_results[0]
+        final_results = [
             SearchResult(index=hit.id, score=hit.distance, text=hit.entity.get("text"))
             for hit in top_hits
         ]
 
-        return response
+        return final_results

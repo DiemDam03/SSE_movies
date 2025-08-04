@@ -1,0 +1,31 @@
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+import os
+from repositories.concrete.postgres_repo import PostgresREPO
+from repositories.concrete.milvus_repo import MilvusREPO
+from core.utilities import VectorHandler
+
+class DataManager:
+    def __init__(self) -> None:
+        self.pg_repo = PostgresREPO()
+        self.mv_repo = MilvusREPO()
+        self.vec_handler = VectorHandler()
+    
+    def init_data(self) -> None:
+        self.pg_repo.create_table()
+
+        CSV_PATH = os.path.join(os.path.abspath(__file__), "movies.csv")
+        self.pg_repo.transfer_data_from_csv_to_postgres(CSV_PATH)
+
+        self.sync_postgres_milvus()
+        return
+       
+    def sync_postgres_milvus(self) -> None:
+        movie_data = self.pg_repo.get_all_movies(self)
+        vectors, unique_words = self.vec_handler.generate_vectors(movie_data)
+
+        self.mv_repo.create_collection(len(unique_words))
+
+        self.mv_repo.store_vectors_to_milvus(vectors, movie_data)
