@@ -35,7 +35,7 @@ class Filter:
     
     def update_genre_list(self, genre: ) -> Enum:
         all_genre = self.get_all_genre()
-        genre_dict = {all_genre.replace('','_').replace('-','')}
+        genre_dict = {all_genre.replace('','_').replace('-',''): genre for genre in all_genre}
         
         return Enum(genre_dict)
 
