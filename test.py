@@ -5,33 +5,33 @@ from models.movie_model import Movie
 
 class Filter: 
     def __init__(self):
-    self.postgres = PostgresREPO()
-    self._genre = None
+        self.postgres = PostgresREPO()
+        self._genre = None
 
 
     def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> list[Movie]: # list movie hay list dict
-    conn = self.postgres_repo.connect_to_postgres()
-    cursor = conn.cursor()
-    cursor.execute( "SELECT movieId, title, genres FROM movies WHERE genres LIKE %s ORDER BY movieId LIMIT %s",(f'%{_genre}%',top_k))
-    movies = cursor.fetchall()
-    cursor.close()
-    conn.close()
+        conn = self.postgres_repo.connect_to_postgres()
+        cursor = conn.cursor()
+        cursor.execute( "SELECT movieId, title, genres FROM movies WHERE genres LIKE %s ORDER BY movieId LIMIT %s",(f'%{_genre}%',top_k))
+        movies = cursor.fetchall()
+        cursor.close()
+        conn.close()
 
-    return [{"id": row['movieid'], "title": row['title'], "genres": row['genres'] or ''} for row in movies]
+        return [{"id": row['movieid'], "title": row['title'], "genres": row['genres'] or ''} for row in movies]
 
     def get_all_genre(self) -> list[str]:
-    conn = self.postgres_repo.connect_to_postgres()
-    cursor.conn.cursor()
-    cursor.execute("SELECT DISTINCT genre FROM movies ORDER BY genre")
-    all_genre = cursor.fetchall()
-    self._genre = [row[0] for row in all_genre] if all_genre else []
+        conn = self.postgres_repo.connect_to_postgres()
+        cursor.conn.cursor()
+        cursor.execute("SELECT DISTINCT genre FROM movies ORDER BY genre")
+        all_genre = cursor.fetchall()
+        self._genre = [row[0] for row in all_genre] if all_genre else []
 
-    cursor.close()
-    conn.close()
-    return self._genre
+        cursor.close()
+        conn.close()
+        return self._genre
 
     def convert_list_to_enum(self, list: list[str]) -> Enum:
-    return Enum('genre_enum', list)
+        return Enum('genre_enum', list)
 
 # ko enum được, genre có thể phải được thêm sửa xoá nếu cần, dù hiếm khi
 # có thể chuyển type từ str sang enum? xong khi cần thì clear và update?
