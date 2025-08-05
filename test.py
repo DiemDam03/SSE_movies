@@ -15,7 +15,7 @@ def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> li
     cursor.close()
     conn.close()
 
-   return [{"id": row['movieid'], "title": row['title'], "genres": row['genres'] or ''} for row in movies]
+    return [{"id": row['movieid'], "title": row['title'], "genres": row['genres'] or ''} for row in movies]
 
 def get_all_genre(self) -> list[str]:
     conn = self.postgres_repo.connect_to_postgres()
@@ -26,7 +26,7 @@ def get_all_genre(self) -> list[str]:
 
     cursor.close()
     conn.close()
- return self._genre
+    return self._genre
 
 def convert_list_to_enum(self, list: list[str]) -> Enum:
     return Enum('genre_enum', list)
