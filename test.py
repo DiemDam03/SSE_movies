@@ -32,6 +32,12 @@ class Filter:
 
     def convert_list_to_enum(self, list: list[str]) -> Enum:
         return Enum('genre_enum', list)
+    
+    def update_genre_list(self, genre: ) -> Enum:
+        all_genre = self.get_all_genre()
+        genre_dict = {all_genre.replace('','_').replace('-','')}
+        
+        return Enum(genre_dict)
 
 # ko enum được, genre có thể phải được thêm sửa xoá nếu cần, dù hiếm khi
 # có thể chuyển type từ str sang enum? xong khi cần thì clear và update?
