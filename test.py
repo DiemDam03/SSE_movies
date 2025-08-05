@@ -3,11 +3,13 @@ from enum import Enum
 class Filter: 
     pass
 def __init__(self):
+    self.postgres = PostgresREPO()
     self._genre = None
+
 
 def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> list[Movie]: # list movie hay list dict
     conn = self.postgres_repo.connect_to_postgres()
-    cursor = conn.cursor
+    cursor = conn.cursor()
     cursor.execute( "SELECT movieId, title, genres FROM movies WHERE genres LIKE %s ORDER BY movieId LIMIT %s",(f'%{_genre}%',top_k))
     movies = cursor.fetchall()
     
@@ -17,7 +19,7 @@ def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> li
 
 def get_all_genre(self) -> list[str]:
     conn = self.postgres_repo.connect_to_postgres()
-    cursor.conn.cursor
+    cursor.conn.cursor()
     cursor.execute("SELECT DISTINCT genre FROM movies ORDER BY genre")
     all_genre = cursor.fetchall()
     self._genre = [row[0] for row in all_genre] if all_genre else []
