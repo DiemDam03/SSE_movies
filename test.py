@@ -1,7 +1,14 @@
+from enum import Enum
 
-def filter_by_genre(self, genre = Query("action", all_genre_enum)) -> list[Movie]: # list movie hay list dict
+def filter_by_genre(self, _genre = Query("action", all_genre_enum)) -> list[Movie]: # list movie hay list dict
+    conn = self.postgres_repo.connect_to_postgres()
+    cursor = conn.cursor
+    cursor.excute("SELECT movieId, title, genres FROM movies WHERE genre %s ORDER BY movieId", _genre)
+    movies = cursor.fetchall()
     
-    return 
+    cursor.close()
+    conn.close()
+    return {"genre:",_genre}
 
 
 
