@@ -4,16 +4,16 @@ def filter_by_genre(self, genre: str) -> list[Movie]: # list movie hay list dict
 
 
 def get_all_genre(self) -> list[str]:
- conn = self.postgres_repo.connect_to_postgres()
- cursor.conn.cursor
- cursor.excute("SELECT genre FROM movies ORDER BY  movieId")
+    conn = self.postgres_repo.connect_to_postgres()
+    cursor.conn.cursor
+    cursor.excute("SELECT genre FROM movies ORDER BY  movieId")
  all_genre = cursor.fetchall()
- cursor.close()
- conn.close()
+    cursor.close()
+    conn.close()
  return all_genre 
 
 def convert_list_to_enum(self, list: list[str]) -> Enum:
- return genre_enum = Enum('genre_enum', list)
+    return genre_enum = Enum('genre_enum', list)
 
 # ko enum được, genre có thể phải được thêm sửa xoá nếu cần, dù hiếm khi
 # có thể chuyển type từ str sang enum? xong khi cần thì clear và update?
