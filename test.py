@@ -31,6 +31,9 @@ def get_all_genre(self) -> list[str]:
 def convert_list_to_enum(self, list: list[str]) -> Enum:
     return Enum('genre_enum', list)
 
+def update_genre_enum(self) -> Enum:
+     
+     return self._genre
 # ko enum được, genre có thể phải được thêm sửa xoá nếu cần, dù hiếm khi
 # có thể chuyển type từ str sang enum? xong khi cần thì clear và update?
 
