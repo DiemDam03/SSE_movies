@@ -39,8 +39,18 @@ class Filter:
         
         return Enum(genre_dict)
 
+    
+
 # ko enum được, genre có thể phải được thêm sửa xoá nếu cần, dù hiếm khi
 # có thể chuyển type từ str sang enum? xong khi cần thì clear và update?
+
+
+
+@app.get("/filter_by_genre")
+def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> list[Movie]:
+
+
+
 
 
 
