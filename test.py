@@ -1,7 +1,9 @@
 from enum import Enum
+
+class Filter: 
+    pass
 def __init__(self):
     self._genre = None
-    
 
 def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> list[Movie]: # list movie hay list dict
     conn = self.postgres_repo.connect_to_postgres()
