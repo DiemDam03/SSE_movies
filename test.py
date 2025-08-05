@@ -1,4 +1,7 @@
 from enum import Enum
+from repositories.concrete.postgres_repo import PostgresREPO
+from models.movie_model import Movie
+
 
 class Filter: 
     def __init__(self):
