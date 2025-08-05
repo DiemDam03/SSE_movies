@@ -1,6 +1,8 @@
 
-def filter_by_genre(self, genre: str) -> list[Movie]: # list movie hay list dict
-    pass
+def filter_by_genre(self, genre = Query("action", all_genre_enum)) -> list[Movie]: # list movie hay list dict
+    
+    return 
+
 
 
 def get_all_genre(self) -> list[str]:
