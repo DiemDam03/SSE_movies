@@ -9,10 +9,10 @@ from models.search_result_model import SearchResult
 import core.tfidf as tfidf
 
 class SearchService:
-    def __init__(self, postgres=PostgresREPO, milvus=MilvusREPO, handler=VectorHandler) -> None:
-        self.postgres_repo = PostgresREPO()
-        self.milvus_repo = MilvusREPO()
-        self.vec_handler = VectorHandler()
+    def __init__(self, postgres_repo=None, milvus_repo=None, vec_handler=None) -> None:
+        self.postgres_repo = postgres_repo if postgres_repo else PostgresREPO()
+        self.milvus_repo = milvus_repo if milvus_repo else MilvusREPO()
+        self.vec_handler = vec_handler if vec_handler else VectorHandler()
         self.idf_dict = None
         self.unique_words = None
 

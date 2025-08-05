@@ -5,7 +5,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from models.movie_model import Movie
 from repositories.concrete.milvus_repo import MilvusREPO
 from repositories.concrete.postgres_repo import PostgresREPO
-from data_manager import DataManager
+from services.data_service import DataManager
 
 class MovieService:
     def __init__(self, postgres_repo=None, milvus_repo=None, data_manager=None) -> None:
@@ -34,3 +34,18 @@ class MovieService:
         self.postgres_repo.delete_movie(movie_id)
         self.data_manager.sync_postgres_milvus()
         return {"message": "Movie deleted"}
+    
+    def synchronize(self) -> None:
+        self.milvus_repo.connect_to_milvus()
+        self.milvus_repo.create_collection()
+
+        
+        self.postgres_repo.connect_to_postgres()
+        self.data_manager.sync_postgres_milvus()
+
+        abadon = self.postgres_repo.fetch_data()
+        for item in abadon:
+            pass
+
+        return 
+    
