@@ -47,7 +47,8 @@ class Filter:
 
 
 @app.get("/filter_by_genre")
-def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> list[Movie]:
+def filter_by_genre(self, genre = Query("action", all_genre_enum), top_k) -> list[Movie]:
+     return [insert.path].filter_by_genre(genre, top_k)
 
 
 
