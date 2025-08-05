@@ -31,7 +31,7 @@ class Filter:
             if row[0]:
               genres = row[0].split('|') if '|' in row[0]
               for genre in genres:
-               genre_set.add(genres)
+                  genre_set.add(genres)
         cursor.close()
         conn.close()
         self._genre = sort(list(genre_set))
