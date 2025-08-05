@@ -22,6 +22,10 @@ search_service = SearchService(pg_repo, mv_repo, vec_handler)
 def search_movies(query: str = Query(...), top_k: int = 5):
     return search_service.search_top_k_movie(query, top_k)
 
+@app.get("/filter")
+def filter_by_ genre(genre: str = Query(), top_k: int = 20):
+    return search_service.filter_by_genre(genre, top_k)
+
 if __name__ == "__main__":
     uvicorn.run("user_web:app", host="0.0.0.0", port=8000, reload=True)
 
