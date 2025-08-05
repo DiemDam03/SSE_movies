@@ -3,6 +3,7 @@ from repositories.concrete.postgres_repo import PostgresREPO
 from models.movie_model import Movie
 
 # thay vì tạo class mới có thể add vào class cũ đã có search service, nhớ update abstractmethod
+# Movie model : id, title, genre.
 
 class Filter: 
     def __init__(self):
@@ -24,10 +25,16 @@ class Filter:
         cursor.conn.cursor()
         cursor.execute("SELECT DISTINCT genre FROM movies ORDER BY genre")
         all_genre = cursor.fetchall()
-        self._genre = [row[0] for row in all_genre] if all_genre else []
-
+        #self._genre = [row[0] for row in all_genre] if all_genre else []
+        genre_set = set()
+        for row in all_genres:
+            if row[0]:
+              genres = row[0].split('|') if '|' in row[0]
+              for genre in genres:
+               genre_set.add(genres)
         cursor.close()
         conn.close()
+        self._genre = sort(list(genre_set))
         return self._genre
 
     def convert_list_to_enum(self, list: list[str]) -> Enum:
