@@ -29,7 +29,6 @@ class DataManager:
 
         self.mv_repo.create_collection(len(unique_words))
 
-
         movie_data = self.pg_repo.get_all_movies()
         self.mv_repo.store_vectors_to_milvus(vectors, movie_data)
 

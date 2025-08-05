@@ -24,3 +24,5 @@ def search_movies(query: str = Query(...), top_k: int = 5):
 
 if __name__ == "__main__":
     uvicorn.run("user_web:app", host="0.0.0.0", port=8000, reload=True)
+
+    

@@ -17,10 +17,10 @@ class PostgresREPO(MovieREPO):
             'user': os.getenv("POSTGRES_USER", "postgres"),
             'password': os.getenv("POSTGRES_PASSWORD", "password")
         }
-        self._cache = None
+        self.cache = None
 
     def clear_cache(self):
-        self._cache = None
+        self.cache = None
 
     def connect_to_postgres(self) -> None:
         return psycopg2.connect(**self.connection_params)
@@ -81,9 +81,9 @@ class PostgresREPO(MovieREPO):
         cursor.close()
         conn.close()
 
-    def _fetch_data(self) -> list[dict]:
-        if self._cache is not None:
-            return self._cache
+    def fetch_data(self) -> list[dict]:
+        if self.cache is not None:
+            return self.cache
         
         conn = self.connect_to_postgres()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
@@ -93,11 +93,11 @@ class PostgresREPO(MovieREPO):
         cursor.close()
         conn.close()    
 
-        self._cache = data 
+        self.cache = data 
         return data
 
     def get_all_movies(self) -> list[Movie]:
-        movies = self._fetch_data()
+        movies = self.fetch_data()
         return [
             {
                 "id": row['movieid'], 
@@ -108,7 +108,7 @@ class PostgresREPO(MovieREPO):
         ]
     
     def get_corpus(self):
-        movies = self._fetch_data()
+        movies = self.fetch_data()
         return [f"{row['title']} | {row['genres'] or ''}" for row in movies]
     
     def get_movie_by_id(self, movie_id: int) -> Movie:

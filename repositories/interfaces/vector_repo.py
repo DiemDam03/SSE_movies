@@ -22,6 +22,3 @@ class VectorREPO(ABC):
     @abstractmethod
     def load_vectors_from_milvus(self) -> list[Movie]:
         pass
-    # @abstractmethod
-    # def filter_by_genre(self, genre: str) -> list[float]:
-    #     pass
