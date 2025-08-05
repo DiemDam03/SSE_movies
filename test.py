@@ -2,12 +2,12 @@ from enum import Enum
 from repositories.concrete.postgres_repo import PostgresREPO
 from models.movie_model import Movie
 
+# thay vì tạo class mới có thể add vào class cũ đã có search service, nhớ update abstractmethod
 
 class Filter: 
     def __init__(self):
         self.postgres = PostgresREPO()
         self._genre = None
-
 
     def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> list[Movie]: # list movie hay list dict
         conn = self.postgres_repo.connect_to_postgres()
