@@ -12,12 +12,10 @@ def filter_by_genre(self, _genre = Query("action", all_genre_enum), top_k) -> li
     cursor = conn.cursor()
     cursor.execute( "SELECT movieId, title, genres FROM movies WHERE genres LIKE %s ORDER BY movieId LIMIT %s",(f'%{_genre}%',top_k))
     movies = cursor.fetchall()
-    
-
-return [{"id": row['movieid'], "title": row['title'], "genres": row['genres'] or ''} for row in movies]
     cursor.close()
     conn.close()
-    return movies
+
+   return [{"id": row['movieid'], "title": row['title'], "genres": row['genres'] or ''} for row in movies]
 
 def get_all_genre(self) -> list[str]:
     conn = self.postgres_repo.connect_to_postgres()
