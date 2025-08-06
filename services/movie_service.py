@@ -34,18 +34,5 @@ class MovieService:
         self.postgres_repo.delete_movie(movie_id)
         self.data_manager.sync_postgres_milvus()
         return {"message": "Movie deleted"}
-    
-    def synchronize(self) -> None:
-        self.milvus_repo.connect_to_milvus()
-        self.milvus_repo.create_collection()
 
-        
-        self.postgres_repo.connect_to_postgres()
-        self.data_manager.sync_postgres_milvus()
-
-        abadon = self.postgres_repo.fetch_data()
-        for item in abadon:
-            pass
-
-        return 
     

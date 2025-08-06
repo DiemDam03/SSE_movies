@@ -32,13 +32,6 @@ class DataManager:
         movie_data = self.postgres_repo.get_all_movies()
         self.milvus_repo.store_vectors_to_milvus(vectors, movie_data)
 
-    def joplin_is_no_good():
-        too_slow_app_opening = True
-        too_complicate_to_sync = True
-        too_
-        
-        pass
-
 if __name__ == "__main__":
     dm = DataManager()
     dm.init_data()
