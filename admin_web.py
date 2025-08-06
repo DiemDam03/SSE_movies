@@ -43,10 +43,5 @@ def delete_movie(movie_id: int):
     movie_service.delete_movie(movie_id)
     return {"message": "Movie deleted"}
 
-@app.get("/movies")
-def get_genre_movie(genre: str):
-    movie_service.get_genre()
-    return {"message": "Genre getted"}
-
 if __name__ == "__main__":
     uvicorn.run("admin_web:app", host="0.0.0.0", port=8001, reload=True)

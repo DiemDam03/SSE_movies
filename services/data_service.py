@@ -21,9 +21,9 @@ class DataManager:
 
         self.postgres_repo.transfer_data_from_csv_to_postgres(CSV_PATH)
 
-        self.sync_postgres_milvus()
+        self.sync_postgres_milvus_in_bulk()
        
-    def sync_postgres_milvus(self) -> None:
+    def sync_postgres_milvus_in_bulk(self) -> None:
         corpus = self.postgres_repo.get_corpus()
         vectors, unique_words = self.vec_handler.generate_vectors(corpus)
 

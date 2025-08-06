@@ -6,6 +6,8 @@ from pymilvus import DataType, Collection, connections, CollectionSchema, FieldS
 from repositories.interfaces.vector_repo import VectorREPO
 from models.movie_model import Movie
 from models.search_result_model import SearchResult
+import core.tfidf as tfidf
+from core.utilities import VectorHandler
 
 COLLECTION_NAME = "movie_collection"
 
@@ -14,6 +16,9 @@ class MilvusREPO(VectorREPO):
         self.collection_name = COLLECTION_NAME
         self.host = os.getenv("MILVUS_HOST", "localhost")
         self.port = int(os.getenv("MILVUS_PORT", "19530"))
+        self.vec_handler = VectorHandler()
+        self.idf_dict = None
+        self.unique_words = None
 
     def connect_to_milvus(self) -> None:
         try:
@@ -86,7 +91,54 @@ class MilvusREPO(VectorREPO):
             all_results.extend(results)
 
         return all_results
+    
+    def vectorize_a_movie_to_crud(self, movie_data: dict, corpus: list[str]) -> list[float]:
+        if self.unique_words is None or self.idf_dict is None:
+            _, self.idf_dict = self.vec_handler.generate_tfidf(corpus)
+            self.unique_words = self.vec_handler.get_unique_words(corpus)
 
+        movie_vocab = tfidf.create_vocab_single(movie_data)
+        movie_tf = tfidf.compute_tf_single(movie_vocab)
+        movie_tfidf = tfidf.compute_tfidf_single(movie_tf, self.idf_dict)
+        movie_vector = self.vec_handler.converting_tfidf_to_fixed_dim_vector(movie_tfidf, self.unique_words)    
+
+        return movie_vector
+    
+    def add_movie(self, movie_data: dict, corpus: list[str])  -> None:
+        self.connect_to_milvus()
+        collection = Collection(self.collection_name)
+        collection.load()
+
+        movie_vector = self.vectorize_a_movie_to_crud(movie_data, corpus)
+
+        collection.upsert(movie_vector, self.collection_name)
+        collection.flush()
+        
+    def update_movie(self, movie_id: int, movie_title: str, movie_genre: str, corpus: list[str])  -> None:
+        self.connect_to_milvus()
+        collection = Collection(self.collection_name)
+        collection.load()
+
+        movie_data = [movie_id,
+                      movie_title,
+                      movie_genre]
+
+        movie_vector = self.vectorize_a_movie_to_crud(movie_data, corpus)
+
+        collection.upsert(movie_vector, self.collection_name)
+        collection.flush()
+
+    def delete_movie(self, movie_id: int)  -> None:
+        self.connect_to_milvus()
+        collection = Collection(self.collection_name)
+        collection.load()
+
+        expr = movie_id    
+        collection.delete( expr, self.collection_name)
+        collection.flush()
+
+
+# unique word nhiều hơn -> dim khác -> ko search dc
     def search_top_k_movie(self, query_vector: list[float], top_k: int) -> list[SearchResult]:
         self.connect_to_milvus()
         collection = Collection("movie_collection")
@@ -107,3 +159,4 @@ class MilvusREPO(VectorREPO):
         ]
 
         return final_results
+    

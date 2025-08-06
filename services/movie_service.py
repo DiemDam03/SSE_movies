@@ -22,17 +22,18 @@ class MovieService:
 
     def add_movie(self, movie: dict) -> dict:
         self.postgres_repo.add_movie(movie)
-        self.data_manager.sync_postgres_milvus()
+        corpus = self.postgres_repo.get_corpus()
+        self.milvus_repo.add_movie(movie, corpus)
         return {"message": "Movie added"}
 
     def update_movie(self, movie_id: int, movie: dict) -> dict:
         self.postgres_repo.update_movie(movie_id, movie)
-        self.data_manager.sync_postgres_milvus()
+        # self.data_manager.sync_postgres_milvus()
         return {"message": "Movie updated"}
 
     def delete_movie(self, movie_id: int) -> dict:
         self.postgres_repo.delete_movie(movie_id)
-        self.data_manager.sync_postgres_milvus()
+        # self.data_manager.sync_postgres_milvus()
         return {"message": "Movie deleted"}
 
     
