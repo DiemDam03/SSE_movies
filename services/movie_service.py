@@ -21,78 +21,41 @@ class MovieService:
         return movie
 
     def add_movie(self, movie: dict) -> dict:
-        try:
-            # First add to PostgreSQL
-            self.postgres_repo.add_movie(movie)
-            
-            # Get updated corpus after adding the movie
-            corpus = self.postgres_repo.get_corpus()
-            
-            # Refresh Milvus collection state with new corpus
-            self.milvus_repo.refresh_collection_state(corpus)
-            
-            # Add movie to Milvus
-            self.milvus_repo.add_movie(movie, corpus)
-            
-            return {"message": f"Movie {movie['id']} added successfully to both PostgreSQL and Milvus"}
-        except Exception as e:
-            # If there's an error, we should rollback the PostgreSQL transaction
-            try:
-                self.postgres_repo.delete_movie(movie['id'])
-            except:
-                pass
-            raise Exception(f"Failed to add movie: {str(e)}")
+        self.postgres_repo.add_movie(movie)
+        # self.milvus_repo.refresh_collection_state() # đã có trong add
+        self.milvus_repo.add_movie(movie) # này sai 
         
+    # cái này cũng sai
+    # hẳn là hàm milvus update và add
+    # hay là chỉ sai add, vì update cũng mò vào colleciton mà trc đó đã ko có do ko bỏ vào lúc add => ko, nó sai do bản thân sai.
+    # (code=65535, message=the length(10462) of float data should divide the dim(10458))> 
+    # update sai do sử dụng lại func add mà ko tự insert, upsert.-> bỏ add, tự làm xem còn lỗi ko .
+
+    # vẫn là sai dimension, cần update dimension.
+    # tại sao delete ko cần quan tâm dimesion? tại nó ko vào colleciton xem, nó lấy id xong xóa luôn cái ô đó
+    # làm sao để update dimension? create lại collection lại từ đầu? tốn nhiều chi phí => cách này ko ổn.
+    # 
+    # update schema để thay đổi vector dim? update schema có thay đổi vec dim của collection? 
     def update_movie(self, movie_id: int, movie: dict) -> dict:
-        try:
-            # Check if movie exists
-            existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
-            if not existing_movie:
-                raise Exception(f"Movie with ID {movie_id} not found")
-            
-            # Update in PostgreSQL
-            self.postgres_repo.update_movie(movie_id, movie)
-            
-            # Get updated corpus after updating the movie
-            corpus = self.postgres_repo.get_corpus()
-            
-            # Refresh Milvus collection state with new corpus
-            self.milvus_repo.refresh_collection_state(corpus)
-            
-            # Create updated movie data for Milvus
-            updated_movie_data = {
-                'id': movie_id,
-                'title': movie['title'],
-                'genres': movie['genres']
-            }
-            
-            # Update movie in Milvus
-            self.milvus_repo.update_movie(movie_id, updated_movie_data, corpus)
-            
-            return {"message": f"Movie {movie_id} updated successfully in both PostgreSQL and Milvus"}
-        except Exception as e:
-            raise Exception(f"Failed to update movie: {str(e)}")
+        existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
+        if not existing_movie:
+            raise Exception(f"Movie with ID {movie_id} not found")
+        self.postgres_repo.update_movie(movie_id, movie)
+        corpus = self.postgres_repo.get_corpus()
+        self.milvus_repo.refresh_collection_state(corpus)
+        updated_movie_data = {
+            'id': movie_id,
+            'title': movie['title'],
+            'genres': movie['genres']
+        }
+        self.milvus_repo.update_movie(movie_id, updated_movie_data, corpus)
 
     def delete_movie(self, movie_id: int) -> dict:
-        try:
-            # Check if movie exists
-            existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
-            if not existing_movie:
-                raise Exception(f"Movie with ID {movie_id} not found")
-            
-            # Delete from Milvus first
-            self.milvus_repo.delete_movie(movie_id)
-            
-            # Delete from PostgreSQL
-            self.postgres_repo.delete_movie(movie_id)
-            
-            # Get updated corpus after deleting the movie
-            corpus = self.postgres_repo.get_corpus()
-            
-            # Refresh Milvus collection state with new corpus
-            if corpus:  # Only refresh if there are still movies left
-                self.milvus_repo.refresh_collection_state(corpus)
-            
-            return {"message": f"Movie {movie_id} deleted successfully from both PostgreSQL and Milvus"}
-        except Exception as e:
-            raise Exception(f"Failed to delete movie: {str(e)}")
+        existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
+        if not existing_movie:
+            raise Exception(f"Movie with ID {movie_id} not found")
+        self.milvus_repo.delete_movie(movie_id)
+        self.postgres_repo.delete_movie(movie_id)
+        corpus = self.postgres_repo.get_corpus()
+        if corpus:  
+            self.milvus_repo.refresh_collection_state(corpus)

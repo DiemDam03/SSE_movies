@@ -15,17 +15,14 @@ class SearchService:
         self.vec_handler = vec_handler if vec_handler else VectorHandler()
 
     def search_top_k_movie(self, query: str, top_k: int) -> list[SearchResult]:
-        # Always get fresh corpus and regenerate IDF for search consistency
         corpus = self.postgres_repo.get_corpus()
         
         if not corpus:
-            return []  # No movies to search
+            return [] 
         
-        # Generate fresh TF-IDF data for current corpus
         _, idf_dict = self.vec_handler.generate_tfidf(corpus)
         unique_words = self.vec_handler.get_unique_words(corpus)
 
-        # Process the search query
         query_vocab = tfidf.create_vocab_single(query)
         query_tf = tfidf.compute_tf_single(query_vocab)
         query_tfidf = tfidf.compute_tfidf_single(query_tf, idf_dict)

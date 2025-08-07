@@ -4,6 +4,7 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from pymilvus import DataType, Collection, connections, CollectionSchema, FieldSchema, utility
 from repositories.interfaces.vector_repo import VectorREPO
+from repositories.concrete.postgres_repo import PostgresREPO
 from models.movie_model import Movie
 from models.search_result_model import SearchResult
 import core.tfidf as tfidf
@@ -17,6 +18,7 @@ class MilvusREPO(VectorREPO):
         self.host = os.getenv("MILVUS_HOST", "localhost")
         self.port = int(os.getenv("MILVUS_PORT", "19530"))
         self.vec_handler = VectorHandler()
+        self.postgres_repo = PostgresREPO()
         self.idf_dict = None
         self.unique_words = None
 
@@ -31,16 +33,21 @@ class MilvusREPO(VectorREPO):
             print(f"Failed to connect to Milvus at {self.host}:{self.port}. Error: {e}")
             raise
 
-    def create_collection(self, vector_dim: int) -> None:
-        self.connect_to_milvus()
-
+    def create_schema(self, vector_dim: int) -> None: # return ko phải none, return schema, type của schema là gì
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
             FieldSchema(name="movieId", dtype=DataType.INT64),
             FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=1000),
-            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=vector_dim)
+            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=vector_dim) # có thể cộng một số buffer(?) vào vec dim để chừa chỗ trống 
+                                                                                    # cho add phim mới vào?
         ]
-        schema = CollectionSchema(fields, "Movies collection for TF-IDF search")
+        schema = CollectionSchema(fields, "Movies collection")
+        return schema
+
+    def create_collection(self, vector_dim: int) -> None:
+        self.connect_to_milvus()
+
+        schema = self.create_schema(vector_dim)
 
         if utility.has_collection(self.collection_name):
             utility.drop_collection(self.collection_name)
@@ -50,7 +57,7 @@ class MilvusREPO(VectorREPO):
 
     def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None:        
         self.connect_to_milvus()
-        collection = Collection(self.collection_name)
+        collection = Collection(self.collection_name)  
         
         ids = list(range(len(vectors)))
         movie_ids = [data['id'] for data in movie_data]
@@ -93,27 +100,20 @@ class MilvusREPO(VectorREPO):
         return all_results
     
     def get_next_available_id(self) -> int:
-        """Get the next available ID for insertion"""
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
-        
         if collection.num_entities == 0:
             return 0
-        
-        # Query all IDs and find the maximum
         results = collection.query(expr="id >= 0", output_fields=["id"])
         if not results:
             return 0
-        
         max_id = max(result["id"] for result in results)
         return max_id + 1
     
     def vectorize_movie_text(self, movie_text: str, corpus: list[str]) -> list[float]:
-        """Convert movie text to vector using current corpus for IDF calculation"""
         if self.unique_words is None or self.idf_dict is None:
-            _, self.idf_dict = self.vec_handler.generate_tfidf(corpus)
-            self.unique_words = self.vec_handler.get_unique_words(corpus)
+            self.refresh_collection_state()
 
         movie_vocab = tfidf.create_vocab_single(movie_text)
         movie_tf = tfidf.compute_tf_single(movie_vocab)
@@ -122,55 +122,45 @@ class MilvusREPO(VectorREPO):
 
         return movie_vector
     
-    def add_movie(self, movie_data: dict, corpus: list[str]) -> None:
-        """Add a single movie to Milvus collection"""
+    def add_movie(self, movie_data: dict) -> None:
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
-        collection.load()
+        collection.load() # ko liên quan, ko gây lỗi
 
-        # Create movie text for vectorization
-        movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}"
-        movie_vector = self.vectorize_movie_text(movie_text, corpus)
+        movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" # ko liên quan, ko gây lỗi
+        movie_vector = self.vectorize_movie_text() # khả năng gây lỗi 
+        # cần update collection
+        milvus_id = self.get_next_available_id() # ko liên quan, ko gây lỗi
 
-        # Get next available ID for Milvus (different from movieId)
-        milvus_id = self.get_next_available_id()
-
-        # Prepare data for insertion
         entities = [
-            [milvus_id],  # Milvus internal ID
-            [movie_data['id']],  # Movie ID from database
-            [movie_text],  # Text representation
-            [movie_vector]  # TF-IDF vector
-        ]
+            [milvus_id],  
+            [movie_data['id']],  
+            [movie_text],  
+            [movie_vector]  
+        ] # ko liên quan, ko gây lỗi
 
-        collection.insert(entities)
-        collection.flush()
-        print(f"Added movie {movie_data['id']} to Milvus with internal ID {milvus_id}")
+        collection.insert(entities) 
+        collection.flush() 
 
     def update_movie(self, movie_id: int, movie_data: dict, corpus: list[str]) -> None:
-        """Update a movie in Milvus collection"""
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
 
-        # First, delete the existing movie
-        self.delete_movie(movie_id)
-        
-        # Then add the updated movie
-        self.add_movie(movie_data, corpus)
-        print(f"Updated movie {movie_id} in Milvus")
+        # self.delete_movie(movie_id)
+        # self.add_movie(movie_data, corpus)
+        # or? what the different?
+        collection.upsert(movie_data)
+        collection.flush()
 
     def delete_movie(self, movie_id: int) -> None:
-        """Delete a movie from Milvus collection"""
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
 
-        # Delete by movieId field
         expr = f"movieId == {movie_id}"
         collection.delete(expr)
         collection.flush()
-        print(f"Deleted movie {movie_id} from Milvus")
 
     def search_top_k_movie(self, query_vector: list[float], top_k: int) -> list[SearchResult]:
         self.connect_to_milvus()
@@ -190,11 +180,9 @@ class MilvusREPO(VectorREPO):
             SearchResult(index=hit.entity.get("movieId"), score=hit.distance, text=hit.entity.get("text"))
             for hit in top_hits
         ]
-
         return final_results
     
-    def refresh_collection_state(self, corpus: list[str]) -> None:
-        """Refresh the IDF dictionary and unique words when corpus changes"""
-        _, self.idf_dict = self.vec_handler.generate_tfidf(corpus)
-        self.unique_words = self.vec_handler.get_unique_words(corpus)
-        print("Refreshed collection state with updated corpus")
+    def refresh_collection_state(self) -> None:
+        new_corpus = self.postgres_repo.get_corpus()
+        _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
+        self.unique_words = self.vec_handler.get_unique_words(new_corpus)
