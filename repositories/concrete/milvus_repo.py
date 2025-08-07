@@ -33,27 +33,41 @@ class MilvusREPO(VectorREPO):
             print(f"Failed to connect to Milvus at {self.host}:{self.port}. Error: {e}")
             raise
 
-    def create_schema(self, vector_dim: int) -> None: # return ko phải none, return schema, type của schema là gì
+    def create_collection(self, vector_dim: int) -> None:
+        self.connect_to_milvus()
+
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
             FieldSchema(name="movieId", dtype=DataType.INT64),
             FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=1000),
-            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=vector_dim) # có thể cộng một số buffer(?) vào vec dim để chừa chỗ trống 
-                                                                                    # cho add phim mới vào?
+            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=vector_dim) # có thể cộng một số buffer(?) 
+                                                                                    # vào vec dim để chừa chỗ trống 
+                                                                                    # để add phim mới vào?
         ]
         schema = CollectionSchema(fields, "Movies collection")
-        return schema
-
-    def create_collection(self, vector_dim: int) -> None:
-        self.connect_to_milvus()
-
-        schema = self.create_schema(vector_dim)
 
         if utility.has_collection(self.collection_name):
             utility.drop_collection(self.collection_name)
 
         collection = Collection(self.collection_name, schema)
         return collection
+    
+    def check_if_need_renew_colleciton(self, movie_text: str, current_unique_words: list[str]) -> bool:
+        current_vocab = set(current_unique_words)
+
+        that_movie_unique_words = tfidf.create_vocab_single(movie_text).keys()
+        that_movie_vocab = set(that_movie_unique_words) 
+
+        return that_movie_vocab.issubset(current_vocab) # true: ko tạo, false: cần tạo mới
+
+    def rebuild_collection(self) -> None:
+        corpus = self.postgres_repo.get_corpus()
+        vectors, unique_words = self.vec_handler.generate_vectors(corpus)
+
+        self.create_collection(len(unique_words))
+        movie_data = self.postgres_repo.get_all_movies()
+        self.store_vectors_to_milvus(vectors, movie_data)
+        pass
 
     def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None:        
         self.connect_to_milvus()
@@ -111,9 +125,9 @@ class MilvusREPO(VectorREPO):
         max_id = max(result["id"] for result in results)
         return max_id + 1
     
-    def vectorize_movie_text(self, movie_text: str, corpus: list[str]) -> list[float]:
+    def vectorize_movie_text(self, movie_text: str) -> list[float]:
         if self.unique_words is None or self.idf_dict is None:
-            self.refresh_collection_state()
+            self.refresh_collection_state() # tạo idf_dict, unique_word
 
         movie_vocab = tfidf.create_vocab_single(movie_text)
         movie_tf = tfidf.compute_tf_single(movie_vocab)
@@ -128,7 +142,11 @@ class MilvusREPO(VectorREPO):
         collection.load() # ko liên quan, ko gây lỗi
 
         movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" # ko liên quan, ko gây lỗi
-        movie_vector = self.vectorize_movie_text() # khả năng gây lỗi 
+
+        if not self.check_if_need_renew_colleciton(movie_text, self.unique_words):
+            self.rebuild_collection()
+
+        movie_vector = self.vectorize_movie_text(movie_text) # khả năng gây lỗi 
         # cần update collection
         milvus_id = self.get_next_available_id() # ko liên quan, ko gây lỗi
 
@@ -142,14 +160,23 @@ class MilvusREPO(VectorREPO):
         collection.insert(entities) 
         collection.flush() 
 
-    def update_movie(self, movie_id: int, movie_data: dict, corpus: list[str]) -> None:
+    def update_movie(self, movie_id: int , movie_data: dict) -> None: # có cần movie id để tìm tới rồi update, 
+                                                      # hay nhập theo kiểu movie data là tự động có movie id để kiếm rồi?
+                                                      # corpus thì chắc là ko cần, vì nó là của add func, mà add func đã sửa nên ko cần nữa
+                                                      # movie id hiện ko dc dùng
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
 
+        movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
+        if not self.check_if_need_renew_colleciton(movie_text, self.unique_words):
+            self.rebuild_collection()
+
         # self.delete_movie(movie_id)
         # self.add_movie(movie_data, corpus)
         # or? what the different?
+        
+        # code=1, message=Attempt to insert an unexpected field `title` to collection without enabling dynamic field)
         collection.upsert(movie_data)
         collection.flush()
 

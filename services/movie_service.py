@@ -36,19 +36,20 @@ class MovieService:
     # làm sao để update dimension? create lại collection lại từ đầu? tốn nhiều chi phí => cách này ko ổn.
     # 
     # update schema để thay đổi vector dim? update schema có thay đổi vec dim của collection? 
+    # nếu chỉ có một mình milvus thì sao? cần thử một mình milvus hoạt động như thế nào, các thành phần tương tác như thế nào?
     def update_movie(self, movie_id: int, movie: dict) -> dict:
         existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
         if not existing_movie:
             raise Exception(f"Movie with ID {movie_id} not found")
         self.postgres_repo.update_movie(movie_id, movie)
         corpus = self.postgres_repo.get_corpus()
-        self.milvus_repo.refresh_collection_state(corpus)
+        self.milvus_repo.refresh_collection_state()
         updated_movie_data = {
             'id': movie_id,
             'title': movie['title'],
             'genres': movie['genres']
         }
-        self.milvus_repo.update_movie(movie_id, updated_movie_data, corpus)
+        self.milvus_repo.update_movie(movie_id, updated_movie_data)
 
     def delete_movie(self, movie_id: int) -> dict:
         existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
