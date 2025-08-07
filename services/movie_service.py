@@ -21,19 +21,78 @@ class MovieService:
         return movie
 
     def add_movie(self, movie: dict) -> dict:
-        self.postgres_repo.add_movie(movie)
-        corpus = self.postgres_repo.get_corpus()
-        self.milvus_repo.add_movie(movie, corpus)
-        return {"message": "Movie added"}
-
+        try:
+            # First add to PostgreSQL
+            self.postgres_repo.add_movie(movie)
+            
+            # Get updated corpus after adding the movie
+            corpus = self.postgres_repo.get_corpus()
+            
+            # Refresh Milvus collection state with new corpus
+            self.milvus_repo.refresh_collection_state(corpus)
+            
+            # Add movie to Milvus
+            self.milvus_repo.add_movie(movie, corpus)
+            
+            return {"message": f"Movie {movie['id']} added successfully to both PostgreSQL and Milvus"}
+        except Exception as e:
+            # If there's an error, we should rollback the PostgreSQL transaction
+            try:
+                self.postgres_repo.delete_movie(movie['id'])
+            except:
+                pass
+            raise Exception(f"Failed to add movie: {str(e)}")
+        
     def update_movie(self, movie_id: int, movie: dict) -> dict:
-        self.postgres_repo.update_movie(movie_id, movie)
-        # self.data_manager.sync_postgres_milvus()
-        return {"message": "Movie updated"}
+        try:
+            # Check if movie exists
+            existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
+            if not existing_movie:
+                raise Exception(f"Movie with ID {movie_id} not found")
+            
+            # Update in PostgreSQL
+            self.postgres_repo.update_movie(movie_id, movie)
+            
+            # Get updated corpus after updating the movie
+            corpus = self.postgres_repo.get_corpus()
+            
+            # Refresh Milvus collection state with new corpus
+            self.milvus_repo.refresh_collection_state(corpus)
+            
+            # Create updated movie data for Milvus
+            updated_movie_data = {
+                'id': movie_id,
+                'title': movie['title'],
+                'genres': movie['genres']
+            }
+            
+            # Update movie in Milvus
+            self.milvus_repo.update_movie(movie_id, updated_movie_data, corpus)
+            
+            return {"message": f"Movie {movie_id} updated successfully in both PostgreSQL and Milvus"}
+        except Exception as e:
+            raise Exception(f"Failed to update movie: {str(e)}")
 
     def delete_movie(self, movie_id: int) -> dict:
-        self.postgres_repo.delete_movie(movie_id)
-        # self.data_manager.sync_postgres_milvus()
-        return {"message": "Movie deleted"}
-
-    
+        try:
+            # Check if movie exists
+            existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
+            if not existing_movie:
+                raise Exception(f"Movie with ID {movie_id} not found")
+            
+            # Delete from Milvus first
+            self.milvus_repo.delete_movie(movie_id)
+            
+            # Delete from PostgreSQL
+            self.postgres_repo.delete_movie(movie_id)
+            
+            # Get updated corpus after deleting the movie
+            corpus = self.postgres_repo.get_corpus()
+            
+            # Refresh Milvus collection state with new corpus
+            if corpus:  # Only refresh if there are still movies left
+                self.milvus_repo.refresh_collection_state(corpus)
+            
+            return {"message": f"Movie {movie_id} deleted successfully from both PostgreSQL and Milvus"}
+        except Exception as e:
+            raise Exception(f"Failed to delete movie: {str(e)}")

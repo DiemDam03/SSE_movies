@@ -7,7 +7,7 @@ from repositories.concrete.postgres_repo import PostgresREPO
 from repositories.concrete.milvus_repo import MilvusREPO
 from core.utilities import VectorHandler
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSV_PATH = os.path.join(BASE_DIR, "movies.csv")
 
 class DataManager:

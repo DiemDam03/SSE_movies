@@ -13,18 +13,22 @@ class SearchService:
         self.postgres_repo = postgres_repo if postgres_repo else PostgresREPO()
         self.milvus_repo = milvus_repo if milvus_repo else MilvusREPO()
         self.vec_handler = vec_handler if vec_handler else VectorHandler()
-        self.idf_dict = None
-        self.unique_words = None
 
     def search_top_k_movie(self, query: str, top_k: int) -> list[SearchResult]:
-        if self.unique_words is None or self.idf_dict is None:
-            corpus = self.postgres_repo.get_corpus()
-            _, self.idf_dict = self.vec_handler.generate_tfidf(corpus)
-            self.unique_words = self.vec_handler.get_unique_words(corpus)
+        # Always get fresh corpus and regenerate IDF for search consistency
+        corpus = self.postgres_repo.get_corpus()
+        
+        if not corpus:
+            return []  # No movies to search
+        
+        # Generate fresh TF-IDF data for current corpus
+        _, idf_dict = self.vec_handler.generate_tfidf(corpus)
+        unique_words = self.vec_handler.get_unique_words(corpus)
 
+        # Process the search query
         query_vocab = tfidf.create_vocab_single(query)
         query_tf = tfidf.compute_tf_single(query_vocab)
-        query_tfidf = tfidf.compute_tfidf_single(query_tf, self.idf_dict)
-        query_vector = self.vec_handler.converting_tfidf_to_fixed_dim_vector(query_tfidf, self.unique_words)
+        query_tfidf = tfidf.compute_tfidf_single(query_tf, idf_dict)
+        query_vector = self.vec_handler.converting_tfidf_to_fixed_dim_vector(query_tfidf, unique_words)
 
         return self.milvus_repo.search_top_k_movie(query_vector, top_k)
