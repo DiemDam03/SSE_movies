@@ -42,7 +42,6 @@ class MovieService:
         if not existing_movie:
             raise Exception(f"Movie with ID {movie_id} not found")
         self.postgres_repo.update_movie(movie_id, movie)
-        corpus = self.postgres_repo.get_corpus()
         self.milvus_repo.refresh_collection_state()
         updated_movie_data = {
             'id': movie_id,
