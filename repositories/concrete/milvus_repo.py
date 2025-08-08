@@ -175,8 +175,8 @@ class MilvusREPO(VectorREPO):
                                                       # hay nhập theo kiểu movie data là tự động có movie id để kiếm rồi?
                                                       # corpus thì chắc là ko cần, vì nó là của add func, mà add func đã sửa nên ko cần nữa
                                                       # movie id hiện ko dc dùng
-        if self.unique_words is None or self.idf_dict is None:
-            self.refresh_collection_state()
+        # if self.unique_words is None or self.idf_dict is None:
+        #     self.refresh_collection_state()
         
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
@@ -203,8 +203,11 @@ class MilvusREPO(VectorREPO):
         
         # Insert updated record with same Milvus ID
         movie_vector = self.vectorize_movie_text(movie_text) # vectorize xong thì vector dim của vector này
-                                                             # lớn hơn so với vector dim đã qua xử lý của colleciton
-                                                             # -> vector dim của collection chưa dc tạo đúng cách
+                                                 # lớn hơn so với vector dim đã qua xử lý của colleciton
+                                                 # -> vector dim của collection chưa dc tạo đúng cách
+                                                 # -> phải tính cả unique word của movie mới vào unique word colleciton self.unique-word
+                                                 # xong rồi rebuild collection
+                                                 # update và add giống nhau
         entities = [
             [milvus_id],              # Reuse the same Milvus ID
             [movie_data['id']],       # This should equal movie_id parameter
