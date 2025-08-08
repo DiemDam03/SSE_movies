@@ -100,7 +100,7 @@ class MilvusREPO(VectorREPO):
             }
         )
 
-    def load_vectors_from_milvus(self) -> list[Movie]:
+    def load_vectors_from_milvus(self) -> list[Movie]: # chưa từng xài tới, nên xóa, xóa luôn bên interface
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
@@ -115,6 +115,7 @@ class MilvusREPO(VectorREPO):
             all_results.extend(results)
 
         return all_results
+
     def refresh_collection_state(self) -> None:
         new_corpus = self.postgres_repo.get_corpus()
         _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
@@ -149,24 +150,24 @@ class MilvusREPO(VectorREPO):
 
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
-        collection.load() # ko liên quan, ko gây lỗi
+        collection.load() 
 
-        movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" # ko liên quan, ko gây lỗi
+        movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
+
+        
+        movie_vector = self.vectorize_movie_text(movie_text) 
+        milvus_id = self.get_next_available_id() 
 
         if not self.check_if_need_renew_colleciton(movie_text, self.unique_words):
-            self.rebuild_collection()
-            self.refresh_collection_state()
-
-        movie_vector = self.vectorize_movie_text(movie_text) # khả năng gây lỗi 
-        # cần update collection
-        milvus_id = self.get_next_available_id() # ko liên quan, ko gây lỗi
+                    self.rebuild_collection()
+                    self.refresh_collection_state()
 
         entities = [
             [milvus_id],  
             [movie_data['id']],  
             [movie_text],  
             [movie_vector]  
-        ] # ko liên quan, ko gây lỗi
+        ] 
 
         collection.insert(entities) 
         collection.flush() 
@@ -175,31 +176,28 @@ class MilvusREPO(VectorREPO):
                                                       # hay nhập theo kiểu movie data là tự động có movie id để kiếm rồi?
                                                       # corpus thì chắc là ko cần, vì nó là của add func, mà add func đã sửa nên ko cần nữa
                                                       # movie id hiện ko dc dùng
-        # if self.unique_words is None or self.idf_dict is None:
-        #     self.refresh_collection_state()
+        if self.unique_words is None or self.idf_dict is None:
+            self.refresh_collection_state()
         
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
-
+        print("load yes")
         movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
-        if not self.check_if_need_renew_colleciton(movie_text, self.unique_words):
-            self.rebuild_collection()
-            self.refresh_collection_state()
 
         expr = f"movieId == {movie_id}"
-        # code=1, message=Attempt to insert an unexpected field `title` to collection without enabling dynamic field)
         existing_records = collection.query(expr=expr, output_fields=["id", "movieId"])
     
         if not existing_records:
-            self.add_movie(movie_data)
+            self.add_movie(movie_data)  
+            print("add yes")
             return
         
         milvus_id = existing_records[0]["id"]
         
-        # Delete existing record
-        collection.delete(expr)
-        collection.flush()
+        # # # Delete existing record
+        # collection.delete(expr)
+        # collection.flush()
         
         # Insert updated record with same Milvus ID
         movie_vector = self.vectorize_movie_text(movie_text) # vectorize xong thì vector dim của vector này
@@ -208,6 +206,13 @@ class MilvusREPO(VectorREPO):
                                                  # -> phải tính cả unique word của movie mới vào unique word colleciton self.unique-word
                                                  # xong rồi rebuild collection
                                                  # update và add giống nhau
+        print("vertorize yes")
+
+        if not self.check_if_need_renew_colleciton(movie_text, self.unique_words):
+            self.rebuild_collection()
+            self.refresh_collection_state()
+            print("rebuild yes")
+
         entities = [
             [milvus_id],              # Reuse the same Milvus ID
             [movie_data['id']],       # This should equal movie_id parameter
@@ -215,8 +220,17 @@ class MilvusREPO(VectorREPO):
             [movie_vector]
         ]
         
-        collection.insert(entities)
+        # entities = {
+        #     "id" : milvus_id,
+        #     "movie_data": movie_data['id'],
+        #     "movie_text": movie_text,
+        #     "movie_vector": movie_vector
+        # }
+
+        collection.upsert(entities) 
+        print("upsert yes")
         collection.flush()
+        print("flush yes")
 
     def delete_movie(self, movie_id: int) -> None:
         self.connect_to_milvus()

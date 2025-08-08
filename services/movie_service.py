@@ -29,7 +29,7 @@ class MovieService:
     # hẳn là hàm milvus update và add
     # hay là chỉ sai add, vì update cũng mò vào colleciton mà trc đó đã ko có do ko bỏ vào lúc add => ko, nó sai do bản thân sai.
     # (code=65535, message=the length(10462) of float data should divide the dim(10458))> 
-    # update sai do sử dụng lại func add mà ko tự insert, upsert.-> bỏ add, tự làm xem còn lỗi ko .
+    # update sai do sử dụng lại func add mà ko tự insert, upsert.-> bỏ add, tự làm xem còn lỗi ko => còn
 
     # vẫn là sai dimension, cần update dimension.
     # tại sao delete ko cần quan tâm dimesion? tại nó ko vào colleciton xem, nó lấy id xong xóa luôn cái ô đó
@@ -42,7 +42,7 @@ class MovieService:
         if not existing_movie:
             raise Exception(f"Movie with ID {movie_id} not found")
         self.postgres_repo.update_movie(movie_id, movie)
-        self.milvus_repo.refresh_collection_state()
+        # self.milvus_repo.refresh_collection_state()
         updated_movie_data = {
             'id': movie_id,
             'title': movie['title'],
