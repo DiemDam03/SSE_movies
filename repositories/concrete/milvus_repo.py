@@ -53,13 +53,13 @@ class MilvusREPO(VectorREPO):
     
     def check_if_need_renew_colleciton(self, movie_text: str, current_unique_words: list[str]) -> bool:
         if current_unique_words is None:
-            return False 
+            self.refresh_collection_state()
         current_vocab = set(current_unique_words)
 
         that_movie_unique_words = tfidf.create_vocab_single(movie_text).keys()
-        that_movie_vocab = set(that_movie_unique_words) 
+        that_movie_vocab = set(that_movie_unique_words)
 
-        return that_movie_vocab.issubset(current_vocab) # true: ko tạo, false: cần tạo mới
+        return that_movie_vocab.issubset(current_vocab)
 
     def rebuild_collection(self) -> None:
         corpus = self.postgres_repo.get_corpus()
@@ -80,7 +80,7 @@ class MilvusREPO(VectorREPO):
         movie_ids = [data['id'] for data in movie_data]
         texts = [f"{data['title']} | {data['genres'] or ''}" for data in movie_data]
         
-        batch_size = 50
+        batch_size = 150
         for i in range(0, len(vectors), batch_size):
             batch_entities = [
                 ids[i:i+batch_size],
@@ -163,7 +163,7 @@ class MilvusREPO(VectorREPO):
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
-        print("load yes")
+
         movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
 
         expr = f"movieId == {movie_id}"

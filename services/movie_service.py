@@ -44,4 +44,6 @@ class MovieService:
         self.postgres_repo.delete_movie(movie_id)
         corpus = self.postgres_repo.get_corpus()
         if corpus:  
-            self.milvus_repo.refresh_collection_state()
+            self.milvus_repo.refresh_collection_state() # nếu refresh, maybe unique word ít đi -> dim nhỏ xuống
+                                            # dim này sẽ được dùng để tính vector cho movie mới 
+                                            # -> vector movie mới sẽ không trùng dim với collection -> lỗi

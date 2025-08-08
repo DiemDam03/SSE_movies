@@ -19,9 +19,6 @@ class PostgresREPO(MovieREPO):
         }
         self.cache = None
 
-    def clear_cache(self):
-        self.cache = None
-
     def connect_to_postgres(self) -> None:
         return psycopg2.connect(**self.connection_params)
     
@@ -134,7 +131,7 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
-        self.clear_cache()
+        self.cache = None
 
     def update_movie(self, movie_id: int, movie: dict) -> None:
         conn = self.connect_to_postgres()
@@ -146,7 +143,7 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
-        self.clear_cache()
+        self.cache = None
     
     def delete_movie(self, movie_id: int) -> None:
         conn = self.connect_to_postgres()
@@ -157,4 +154,4 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
-        self.clear_cache()
+        self.cache = None
