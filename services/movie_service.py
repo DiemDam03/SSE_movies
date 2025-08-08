@@ -22,27 +22,13 @@ class MovieService:
 
     def add_movie(self, movie: dict) -> dict:
         self.postgres_repo.add_movie(movie)
-        # self.milvus_repo.refresh_collection_state() # đã có trong add
-        self.milvus_repo.add_movie(movie) # này sai 
-        
-    # cái này cũng sai
-    # hẳn là hàm milvus update và add
-    # hay là chỉ sai add, vì update cũng mò vào colleciton mà trc đó đã ko có do ko bỏ vào lúc add => ko, nó sai do bản thân sai.
-    # (code=65535, message=the length(10462) of float data should divide the dim(10458))> 
-    # update sai do sử dụng lại func add mà ko tự insert, upsert.-> bỏ add, tự làm xem còn lỗi ko => còn
+        self.milvus_repo.add_movie(movie) 
 
-    # vẫn là sai dimension, cần update dimension.
-    # tại sao delete ko cần quan tâm dimesion? tại nó ko vào colleciton xem, nó lấy id xong xóa luôn cái ô đó
-    # làm sao để update dimension? create lại collection lại từ đầu? tốn nhiều chi phí => cách này ko ổn.
-    # 
-    # update schema để thay đổi vector dim? update schema có thay đổi vec dim của collection? 
-    # nếu chỉ có một mình milvus thì sao? cần thử một mình milvus hoạt động như thế nào, các thành phần tương tác như thế nào?
     def update_movie(self, movie_id: int, movie: dict) -> dict:
         existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
         if not existing_movie:
             raise Exception(f"Movie with ID {movie_id} not found")
         self.postgres_repo.update_movie(movie_id, movie)
-        # self.milvus_repo.refresh_collection_state()
         updated_movie_data = {
             'id': movie_id,
             'title': movie['title'],
@@ -58,4 +44,4 @@ class MovieService:
         self.postgres_repo.delete_movie(movie_id)
         corpus = self.postgres_repo.get_corpus()
         if corpus:  
-            self.milvus_repo.refresh_collection_state(corpus)
+            self.milvus_repo.refresh_collection_state()

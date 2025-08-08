@@ -27,7 +27,7 @@ class MilvusREPO(VectorREPO):
             return connections.connect(
                 alias="default",
                 host=self.host,
-                port=self.port
+                port=self.port,
             )
         except Exception as e:
             print(f"Failed to connect to Milvus at {self.host}:{self.port}. Error: {e}")
@@ -40,9 +40,8 @@ class MilvusREPO(VectorREPO):
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
             FieldSchema(name="movieId", dtype=DataType.INT64),
             FieldSchema(name="text", dtype=DataType.VARCHAR, max_length=1000),
-            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=vector_dim) # có thể cộng một số buffer(?) 
-                                                                                    # vào vec dim để chừa chỗ trống 
-                                                                                    # để add phim mới vào?
+            FieldSchema(name="vector", dtype=DataType.FLOAT_VECTOR, dim=vector_dim)
+
         ]
         schema = CollectionSchema(fields, "Movies collection")
 
@@ -67,6 +66,7 @@ class MilvusREPO(VectorREPO):
         vectors, unique_words = self.vec_handler.generate_vectors(corpus)
 
         self.create_collection(len(unique_words))
+
         movie_data = self.postgres_repo.get_all_movies()
         self.store_vectors_to_milvus(vectors, movie_data)
         self.refresh_collection_state()
@@ -100,22 +100,6 @@ class MilvusREPO(VectorREPO):
             }
         )
 
-    def load_vectors_from_milvus(self) -> list[Movie]: # chưa từng xài tới, nên xóa, xóa luôn bên interface
-        self.connect_to_milvus()
-        collection = Collection(self.collection_name)
-        collection.load()
-        
-        all_results = []
-        batch_size = 50
-        total = collection.num_entities
-
-        for offset in range(0, total, batch_size):
-            expr = f"id >= {offset} and id < {offset + batch_size}"
-            results = collection.query(expr=expr, output_fields=["id", "movieId", "text", "vector"])
-            all_results.extend(results)
-
-        return all_results
-
     def refresh_collection_state(self) -> None:
         new_corpus = self.postgres_repo.get_corpus()
         _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
@@ -135,7 +119,7 @@ class MilvusREPO(VectorREPO):
     
     def vectorize_movie_text(self, movie_text: str) -> list[float]:
         if self.unique_words is None or self.idf_dict is None:
-            self.refresh_collection_state() # tạo idf_dict, unique_word
+            self.refresh_collection_state() 
 
         movie_vocab = tfidf.create_vocab_single(movie_text)
         movie_tf = tfidf.compute_tf_single(movie_vocab)
@@ -172,10 +156,7 @@ class MilvusREPO(VectorREPO):
         collection.insert(entities) 
         collection.flush() 
 
-    def update_movie(self, movie_id: int , movie_data: dict) -> None: # có cần movie id để tìm tới rồi update, 
-                                                      # hay nhập theo kiểu movie data là tự động có movie id để kiếm rồi?
-                                                      # corpus thì chắc là ko cần, vì nó là của add func, mà add func đã sửa nên ko cần nữa
-                                                      # movie id hiện ko dc dùng
+    def update_movie(self, movie_id: int , movie_data: dict) -> None:
         if self.unique_words is None or self.idf_dict is None:
             self.refresh_collection_state()
         
@@ -190,47 +171,25 @@ class MilvusREPO(VectorREPO):
     
         if not existing_records:
             self.add_movie(movie_data)  
-            print("add yes")
             return
         
         milvus_id = existing_records[0]["id"]
-        
-        # # # Delete existing record
-        # collection.delete(expr)
-        # collection.flush()
-        
-        # Insert updated record with same Milvus ID
-        movie_vector = self.vectorize_movie_text(movie_text) # vectorize xong thì vector dim của vector này
-                                                 # lớn hơn so với vector dim đã qua xử lý của colleciton
-                                                 # -> vector dim của collection chưa dc tạo đúng cách
-                                                 # -> phải tính cả unique word của movie mới vào unique word colleciton self.unique-word
-                                                 # xong rồi rebuild collection
-                                                 # update và add giống nhau
-        print("vertorize yes")
+
+        movie_vector = self.vectorize_movie_text(movie_text) 
 
         if not self.check_if_need_renew_colleciton(movie_text, self.unique_words):
             self.rebuild_collection()
             self.refresh_collection_state()
-            print("rebuild yes")
 
         entities = [
-            [milvus_id],              # Reuse the same Milvus ID
-            [movie_data['id']],       # This should equal movie_id parameter
+            [milvus_id],              
+            [movie_data['id']],      
             [movie_text],
             [movie_vector]
         ]
-        
-        # entities = {
-        #     "id" : milvus_id,
-        #     "movie_data": movie_data['id'],
-        #     "movie_text": movie_text,
-        #     "movie_vector": movie_vector
-        # }
 
         collection.upsert(entities) 
-        print("upsert yes")
         collection.flush()
-        print("flush yes")
 
     def delete_movie(self, movie_id: int) -> None:
         self.connect_to_milvus()

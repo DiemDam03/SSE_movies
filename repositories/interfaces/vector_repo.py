@@ -11,14 +11,11 @@ class VectorREPO(ABC):
     def connect_to_milvus(self) -> None:
         pass
     @abstractmethod
-    def create_collection(self) -> None:
+    def create_collection(self, vector_dim: int) -> None:
         pass
     @abstractmethod
     def search_top_k_movie(self, query: list[float], top_k: int) -> list[SearchResult]:
         pass
     @abstractmethod
     def store_vectors_to_milvus(self) -> None:
-        pass
-    @abstractmethod
-    def load_vectors_from_milvus(self) -> list[Movie]:
         pass
