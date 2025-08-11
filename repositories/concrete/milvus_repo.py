@@ -62,15 +62,35 @@ class MilvusREPO(VectorREPO):
         return that_movie_vocab.issubset(current_vocab)
 
     def rebuild_collection(self) -> None:
-        corpus = self.postgres_repo.get_corpus()
-        vectors, unique_words = self.vec_handler.generate_vectors(corpus)
+        # corpus = self.postgres_repo.get_corpus()
+        # vectors, unique_words = self.vec_handler.generate_vectors(corpus) # làm như này là mất unique word đã lưu, 
+                                                                # chỉ chừa lại unique trong corpus mới
 
-        self.create_collection(len(unique_words))
+        new_corpus = self.postgres_repo.get_corpus()
 
-        movie_data = self.postgres_repo.get_all_movies()
-        self.store_vectors_to_milvus(vectors, movie_data)
+        new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
+        self.unique_words = list(set(self.unique_words) | set(new_corpus_unique_words)) 
+
+        vectors = self.vec_handler.generate_tfidf(new_corpus)     
+
+        modified_vectors =[
+            self.vec_handler.converting_tfidf_to_fixed_dim_vector(tfidf_dict, self.unique_words)
+            for tfidf_dict in vectors
+        ]                                  
+
+        # self.create_collection(len(unique_words))
+        self.create_collection(len(self.unique_words))
+
+        # movie_data = self.postgres_repo.get_all_movies()
+        movie_data = self.postgres_repo.get_corpus()
+
+        self.store_vectors_to_milvus(modified_vectors, movie_data)
         self.refresh_collection_state()
-        pass
+        # ? tại sao lại store vector vào trc khi refresh
+        # à, là refresh collection state chứ ko phải tạo mới.
+        # refresh này mục đích là tạo lại idf dict chứ ko phải tạo lại unique word
+        # unique word đã dc tạo ở bên trên, tạo lại thì phí tài nguyên => bỏ dùng hàm refresh, tạo lại idf dict manual.
+        _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
 
     def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None:        
         self.connect_to_milvus()
@@ -91,19 +111,39 @@ class MilvusREPO(VectorREPO):
             collection.insert(batch_entities)
 
         collection.flush()
-        collection.create_index(
-            field_name="vector",
+        collection.create_index(            
+            field_name="vector",             
             index_params={
                 "metric_type": "COSINE",
                 "index_type": "IVF_FLAT",
                 "params": {"nlist": 128}
             }
         )
+        # rebuild collection có cần rebuild index? 
+        # hẳn là ko cần, index là cần cho search thôi
 
     def refresh_collection_state(self) -> None:
         new_corpus = self.postgres_repo.get_corpus()
         _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
-        self.unique_words = self.vec_handler.get_unique_words(new_corpus)
+        # self.unique_words = self.vec_handler.get_unique_words(new_corpus) 
+                                    # làm sao để nó chỉ thêm vào mà ko mất bớt?
+                                    # thêm ko bớt thì vector dim sẽ rộng, tăng chi phí 
+                                    # rebuild collection hoạt động khi có unique word của movie mới ko thuộc unique word trong collection cache
+                                    # unique word trong collection càng nhiều thì số lần rebuild càng ít
+                                    # vector dim liên quan đến việc tính toán vectorize movie
+                                    # => giảm số lần rebuild và độ rộng vector dim, chọn một, so sánh chi phí
+                                    # tạm thời tăng độ rộng vector dim chi phí thấp hơn rebuild colleciton
+    # cách merge 2 unique word: 
+    # cách 1: là append for loop, điều kiện nếu word đó nằm ngoài unique word dict thì append vào, nếu nằm trong thì khỏi. append thấy hơi sai sai 
+    # cách 2: merge set list, merge bằng operator "+", dùng set() để lọc duplicate, list() để chuyển về list
+    # cách 3: dùng set lọc duplicate 2 list(thực ra ko cần vì cả 2 đều là unique word của corpus/single movie rồi, hay là cần để thực hiện cộng trừ?), 
+                    # lấy cái A trừ cái B để lọc ra cái có trong A nhưng lại ko có trong B, gọi tạm là C
+                    # rồi lấy cái C chuyển thành list rồi cộng với cái list ban đầu A 
+                    # Chú: A là corpus, B là single
+    # cách 4: dùng extend for loop
+    # cách 5: or 2 set và chuyển nó thành list
+        new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
+        self.unique_words = list(set(self.unique_words) | set(new_corpus_unique_words))
 
     def get_next_available_id(self) -> int:
         self.connect_to_milvus()
