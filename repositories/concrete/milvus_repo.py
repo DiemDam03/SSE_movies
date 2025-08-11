@@ -33,7 +33,7 @@ class MilvusREPO(VectorREPO):
             print(f"Failed to connect to Milvus at {self.host}:{self.port}. Error: {e}")
             raise
 
-    def create_collection(self, vector_dim: int) -> None:
+    def create_collection(self, vector_dim: int) -> Collection:
         self.connect_to_milvus()
 
         fields = [
@@ -49,8 +49,10 @@ class MilvusREPO(VectorREPO):
             utility.drop_collection(self.collection_name)
 
         collection = Collection(self.collection_name, schema)
-        return collection
-    
+        # Collection(self.collection_name, schema)
+        return collection # cái này đáng ra phải return none mới hợp lý
+                          # nhưng lại cần hàm này gán vào biến
+        
     def check_if_need_renew_colleciton(self, movie_text: str, current_unique_words: list[str]) -> bool:
         if current_unique_words is None:
             self.refresh_collection_state()
@@ -64,14 +66,14 @@ class MilvusREPO(VectorREPO):
     def rebuild_collection(self) -> None:
         # corpus = self.postgres_repo.get_corpus()
         # vectors, unique_words = self.vec_handler.generate_vectors(corpus) # làm như này là mất unique word đã lưu, 
-                                                                # chỉ chừa lại unique trong corpus mới
-
-        new_corpus = self.postgres_repo.get_corpus()
+                                                                # chỉ chừa lại unique word trong corpus mới
+        movie_data = self.postgres_repo.get_all_movies()
+        new_corpus = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
 
         new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
         self.unique_words = list(set(self.unique_words) | set(new_corpus_unique_words)) 
 
-        vectors = self.vec_handler.generate_tfidf(new_corpus)     
+        vectors = self.vec_handler.generate_tfidf(new_corpus)
 
         modified_vectors =[
             self.vec_handler.converting_tfidf_to_fixed_dim_vector(tfidf_dict, self.unique_words)
@@ -81,18 +83,25 @@ class MilvusREPO(VectorREPO):
         # self.create_collection(len(unique_words))
         self.create_collection(len(self.unique_words))
 
-        # movie_data = self.postgres_repo.get_all_movies()
-        movie_data = self.postgres_repo.get_corpus()
+        # movie_data = self.postgres_repo.get_corpus()
+        # movie_data = self.postgres_repo.get_all_movies() 
+                    # get all movie hợp lý hơn vì schem có trường movieId, get corpus ko có trường đó, 
+                    # get all movie thì có trường movieId.
+                    # vấn đề là, ở trên get 1 lần corpus, ở dưới get 1 lần all movie, 2 loại dữ liệu gần giống nhau, như thế sẽ lãng phí 
+                    # nhưng đúng là get corpus với get all movie có mục đích khác nhau
+                    # nếu dùng get all movie để tạo unique word thì unique word sẽ bị đội lên nhiều hơn, vì mỗi movieId cũng là unique word
+                    # cách: get all movie xong lọc ra movieId để nhét vào tính unique word
+                    # vấn đề: giữa truy vấn get hai lần với thao tác tính toán lọc thì cái nào tốn nhiều chi phí hơn
 
         self.store_vectors_to_milvus(modified_vectors, movie_data)
-        self.refresh_collection_state()
+        # self.refresh_collection_state()
         # ? tại sao lại store vector vào trc khi refresh
         # à, là refresh collection state chứ ko phải tạo mới.
         # refresh này mục đích là tạo lại idf dict chứ ko phải tạo lại unique word
         # unique word đã dc tạo ở bên trên, tạo lại thì phí tài nguyên => bỏ dùng hàm refresh, tạo lại idf dict manual.
         _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
 
-    def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None:        
+    def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None:  # vậy là movie data bắt buộc phải có trường movieId
         self.connect_to_milvus()
         collection = Collection(self.collection_name)  
         
@@ -100,7 +109,7 @@ class MilvusREPO(VectorREPO):
         movie_ids = [data['id'] for data in movie_data]
         texts = [f"{data['title']} | {data['genres'] or ''}" for data in movie_data]
         
-        batch_size = 150
+        batch_size = 150 # batch nhiều quá hoặc ít quá thời gian tính toán lâu, cần tìm điểm cân bằng
         for i in range(0, len(vectors), batch_size):
             batch_entities = [
                 ids[i:i+batch_size],
@@ -121,6 +130,9 @@ class MilvusREPO(VectorREPO):
         )
         # rebuild collection có cần rebuild index? 
         # hẳn là ko cần, index là cần cho search thôi
+        # bậy bạ, cần chứ, mà cũng chẳng cần để ý, vì tạo index nằm trong hàm store, mà hàm store luôn dc gọi khi rebuild colleciton.
+        # streaming data thì nên tạo index trc xong mới insert vào
+        # batch data thì ko thấy nhắc tới, hẳn là sao cũng dc, nên thôi để yên ko thay đổi.
 
     def refresh_collection_state(self) -> None:
         new_corpus = self.postgres_repo.get_corpus()
@@ -184,7 +196,7 @@ class MilvusREPO(VectorREPO):
 
         if not self.check_if_need_renew_colleciton(movie_text, self.unique_words):
                     self.rebuild_collection()
-                    self.refresh_collection_state()
+                    # self.refresh_collection_state() # đã sửa hàm rebuild, ko cần refresh nữa
 
         entities = [
             [milvus_id],  
@@ -219,7 +231,7 @@ class MilvusREPO(VectorREPO):
 
         if not self.check_if_need_renew_colleciton(movie_text, self.unique_words):
             self.rebuild_collection()
-            self.refresh_collection_state()
+            # self.refresh_collection_state()
 
         entities = [
             [milvus_id],              
@@ -239,6 +251,7 @@ class MilvusREPO(VectorREPO):
         expr = f"movieId == {movie_id}"
         collection.delete(expr)
         collection.flush()
+        # có cần rebuild collection?
 
     def search_top_k_movie(self, query_vector: list[float], top_k: int) -> list[SearchResult]:
         self.connect_to_milvus()
