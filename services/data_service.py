@@ -22,7 +22,8 @@ class DataManager:
         self.postgres_repo.transfer_data_from_csv_to_postgres(CSV_PATH)
 
         # self.sync_postgres_milvus_in_bulk()
-        self.milvus_repo.rebuild_collection()
+        self.milvus_repo.rebuild_collection() # ~~ko thể dùng rebuild để init~~
+                                              # có thể dùng rebuild để init
 
     # def sync_postgres_milvus_in_bulk(self) -> None: # vậy thì cần gì hàm này nữa, gọi trực tiếp rebuild collection cho r 
     #     # corpus = self.postgres_repo.get_corpus()

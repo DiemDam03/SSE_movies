@@ -20,11 +20,11 @@ class MovieService:
         movie = self.postgres_repo.get_movie_by_id(movie_id)
         return movie
 
-    def add_movie(self, movie: dict) -> dict:
+    def add_movie(self, movie: dict) -> None:
         self.postgres_repo.add_movie(movie)
         self.milvus_repo.add_movie(movie) 
 
-    def update_movie(self, movie_id: int, movie: dict) -> dict:
+    def update_movie(self, movie_id: int, movie: dict) -> None:
         existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
         if not existing_movie:
             raise Exception(f"Movie with ID {movie_id} not found")
@@ -36,7 +36,7 @@ class MovieService:
         }
         self.milvus_repo.update_movie(movie_id, updated_movie_data)
 
-    def delete_movie(self, movie_id: int) -> dict:
+    def delete_movie(self, movie_id: int) -> None:
         existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
         if not existing_movie:
             raise Exception(f"Movie with ID {movie_id} not found")

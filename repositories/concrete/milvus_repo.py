@@ -20,7 +20,7 @@ class MilvusREPO(VectorREPO):
         self.vec_handler = VectorHandler()
         self.postgres_repo = PostgresREPO()
         self.idf_dict = None
-        self.unique_words = None
+        self.unique_words = []
 
     def connect_to_milvus(self) -> None:
         try:
@@ -64,16 +64,23 @@ class MilvusREPO(VectorREPO):
         return that_movie_vocab.issubset(current_vocab)
 
     def rebuild_collection(self) -> None:
-        # corpus = self.postgres_repo.get_corpus()
+        # new_corpus = self.postgres_repo.get_corpus()
         # vectors, unique_words = self.vec_handler.generate_vectors(corpus) # làm như này là mất unique word đã lưu, 
                                                                 # chỉ chừa lại unique word trong corpus mới
         movie_data = self.postgres_repo.get_all_movies()
-        new_corpus = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
+        new_corpus = [f"{row['title']} | {row['genres'] or ''}" for row in movie_data]
+        # new_corpus = {
+        #         'title': movie_data['title'],
+        #         'genres': movie_data['genres']
+        # }
+        #TypeError: list indices must be integers or slices, not str
 
         new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
-        self.unique_words = list(set(self.unique_words) | set(new_corpus_unique_words)) 
+        self.unique_words = list(set(self.unique_words) | set(new_corpus_unique_words)) # cái self.unique_word chưa có nên ko thể dùng hàm này để init database lần đầu dc
+        # TypeError: 'NoneType' object is not iterable
+        # Khoan, nếu nó là do nonetype thì nếu mình chuyển nó thành có type nhưng rỗng thì có dc ko
 
-        vectors = self.vec_handler.generate_tfidf(new_corpus)
+        vectors,_ = self.vec_handler.generate_tfidf(new_corpus)
 
         modified_vectors =[
             self.vec_handler.converting_tfidf_to_fixed_dim_vector(tfidf_dict, self.unique_words)

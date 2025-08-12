@@ -18,7 +18,7 @@ class SearchService:
         corpus = self.postgres_repo.get_corpus()
         
         if not corpus:
-            return [] 
+            return {"message": "No movie in database!"}
         
         _, idf_dict = self.vec_handler.generate_tfidf(corpus)
         unique_words = self.vec_handler.get_unique_words(corpus)
