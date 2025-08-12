@@ -123,7 +123,7 @@ class MilvusREPO(VectorREPO):
         movie_ids = [data['id'] for data in movie_data]
         texts = [f"{data['title']} | {data['genres'] or ''}" for data in movie_data]
         
-        batch_size = 100 # batch nhiều quá hoặc ít quá thời gian tính toán lâu, cần tìm điểm cân bằng
+        batch_size = 75 # batch nhiều quá hoặc ít quá thời gian tính toán lâu, cần tìm điểm cân bằng
         for i in range(0, len(vectors), batch_size):
             batch_entities = [
                 ids[i:i+batch_size],
