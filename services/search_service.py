@@ -15,15 +15,20 @@ class SearchService:
         self.vec_handler = vec_handler if vec_handler else VectorHandler()
 
     def search_top_k_movie(self, query: str, top_k: int) -> list[SearchResult]:
-        corpus = self.postgres_repo.get_corpus()
+        # corpus = self.postgres_repo.get_corpus()
         
-        if not corpus:
-            return {"message": "No movie in database!"}
+        # if not corpus:
+        #     return {"message": "No movie in database!"}
         
-        _, idf_dict = self.vec_handler.generate_tfidf(corpus)
-        unique_words = self.vec_handler.get_unique_words(corpus)
+        if not self.milvus_repo.unique_words or not self.milvus_repo.idf_dict:
+            self.milvus_repo.refresh_collection_state()
 
-        query_vocab = tfidf.create_vocab_single(query)
+        # _, idf_dict = self.vec_handler.generate_tfidf(corpus) # cái này cũng v, cũng phải dùng của milvus chứ.
+        # unique_words = self.vec_handler.get_unique_words(corpus) # phải dùng unique word của milvus chứ, inconsistent quá.
+        unique_words = self.milvus_repo.unique_words
+        idf_dict = self.milvus_repo.idf_dict
+
+        query_vocab = tfidf.create_vocab_single(query) 
         query_tf = tfidf.compute_tf_single(query_vocab)
         query_tfidf = tfidf.compute_tfidf_single(query_tf, idf_dict)
         query_vector = self.vec_handler.converting_tfidf_to_fixed_dim_vector(query_tfidf, unique_words)

@@ -34,8 +34,9 @@ class DataManager:
     #     # movie_data = self.postgres_repo.get_all_movies()
     #     # self.milvus_repo.store_vectors_to_milvus(vectors, movie_data)
     #     self.milvus_repo.rebuild_collection() # rebuild đã bao gồm tất cả những thứ trên và hoàn thiện hơn
+    # 
     
-
+    
 
 if __name__ == "__main__":
     dm = DataManager()
