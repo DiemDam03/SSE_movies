@@ -26,8 +26,6 @@ class SearchService:
         if not self.milvus_repo.unique_words or not self.milvus_repo.idf_dict:
             self.milvus_repo.refresh_collection_state()
 
-        # _, idf_dict = self.vec_handler.generate_tfidf(corpus) # cái này cũng v, cũng phải dùng của milvus chứ.
-        # unique_words = self.vec_handler.get_unique_words(corpus) # phải dùng unique word của milvus chứ, inconsistent quá.
         unique_words = self.milvus_repo.unique_words
         idf_dict = self.milvus_repo.idf_dict
 

@@ -20,7 +20,7 @@ search_service = SearchService(pg_repo, mv_repo, vec_handler)
 
 @app.get("/search", response_model=list[SearchResult])
 def search_movies(query: str = Query(...), top_k: int = 5):
-    return search_service.search_top_k_movie(query, top_k) # kết quả search ko chuẩn, khả năng cao là do vectorize ko đúng corpus   
+    return search_service.search_top_k_movie(query, top_k)   
 
 if __name__ == "__main__":
     uvicorn.run("user_web:app", host="0.0.0.0", port=8000, reload=True)

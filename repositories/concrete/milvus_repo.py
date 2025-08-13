@@ -49,9 +49,7 @@ class MilvusREPO(VectorREPO):
             utility.drop_collection(self.collection_name)
 
         collection = Collection(self.collection_name, schema)
-        # Collection(self.collection_name, schema)
-        return collection # cái này đáng ra phải return none mới hợp lý
-                          # nhưng lại cần hàm này gán vào biến
+        return collection 
         
     def check_if_need_renew_colleciton(self, movie_text: str, current_unique_words: list[str]) -> bool:
         if not current_unique_words:
@@ -59,27 +57,16 @@ class MilvusREPO(VectorREPO):
             
         current_vocab = set(current_unique_words)
 
-        # that_movie_unique_words = tfidf.create_vocab_single(movie_text).keys()
-        # that_movie_vocab = set(that_movie_unique_words)
-
         that_movie_vocab = set(tfidf.create_vocab_single(movie_text).keys())
 
         return not that_movie_vocab.issubset(current_vocab)
 
     def rebuild_collection(self) -> None:
-        # new_corpus = self.postgres_repo.get_corpus()
-        # vectors, unique_words = self.vec_handler.generate_vectors(corpus) # làm như này là mất unique word đã lưu, 
-                                                                # chỉ chừa lại unique word trong corpus mới
         movie_data = self.postgres_repo.get_all_movies()
         if not movie_data:
             return {"message": "Emty database"}
 
         new_corpus = [f"{row['title']} | {row['genres'] or ''}" for row in movie_data]
-        # new_corpus = {
-        #         'title': movie_data['title'],
-        #         'genres': movie_data['genres']
-        # }
-        #TypeError: list indices must be integers or slices, not str
 
         new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
 
@@ -94,28 +81,11 @@ class MilvusREPO(VectorREPO):
             for tfidf_dict in tfidf_all
         ]                                  
 
-        # self.create_collection(len(unique_words))
         self.create_collection(len(self.unique_words))
 
-        # movie_data = self.postgres_repo.get_corpus()
-        # movie_data = self.postgres_repo.get_all_movies() 
-                    # get all movie hợp lý hơn vì schem có trường movieId, get corpus ko có trường đó, 
-                    # get all movie thì có trường movieId.
-                    # vấn đề là, ở trên get 1 lần corpus, ở dưới get 1 lần all movie, 2 loại dữ liệu gần giống nhau, như thế sẽ lãng phí 
-                    # nhưng đúng là get corpus với get all movie có mục đích khác nhau
-                    # nếu dùng get all movie để tạo unique word thì unique word sẽ bị đội lên nhiều hơn, vì mỗi movieId cũng là unique word
-                    # cách: get all movie xong lọc ra movieId để nhét vào tính unique word
-                    # vấn đề: giữa truy vấn get hai lần với thao tác tính toán lọc thì cái nào tốn nhiều chi phí hơn
-
         self.store_vectors_to_milvus(modified_vectors, movie_data)
-        # self.refresh_collection_state()
-        # ? tại sao lại store vector vào trc khi refresh
-        # à, là refresh collection state chứ ko phải tạo mới.
-        # refresh này mục đích là tạo lại idf dict chứ ko phải tạo lại unique word
-        # unique word đã dc tạo ở bên trên, tạo lại thì phí tài nguyên => bỏ dùng hàm refresh, tạo lại idf dict manual.
-        # _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
 
-    def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None:  # vậy là movie data bắt buộc phải có trường movieId
+    def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None: 
         self.connect_to_milvus()
         collection = Collection(self.collection_name)  
         
@@ -123,7 +93,7 @@ class MilvusREPO(VectorREPO):
         movie_ids = [data['id'] for data in movie_data]
         texts = [f"{data['title']} | {data['genres'] or ''}" for data in movie_data]
         
-        batch_size = 75 # batch nhiều quá hoặc ít quá thời gian tính toán lâu, cần tìm điểm cân bằng
+        batch_size = 75 
         for i in range(0, len(vectors), batch_size):
             batch_entities = [
                 ids[i:i+batch_size],
@@ -142,15 +112,8 @@ class MilvusREPO(VectorREPO):
                 "params": {"nlist": 128}
             }
         )
-        # rebuild collection có cần rebuild index? 
-        # hẳn là ko cần, index là cần cho search thôi
-        # bậy bạ, cần chứ, mà cũng chẳng cần để ý, vì tạo index nằm trong hàm store, mà hàm store luôn dc gọi khi rebuild colleciton.
-        # streaming data thì nên tạo index trc xong mới insert vào
-        # batch data thì ko thấy nhắc tới, hẳn là sao cũng dc, nên thôi để yên ko thay đổi.
 
     def refresh_collection_state(self) -> None:
-        # new_corpus = self.postgres_repo.get_corpus()
-        # _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus) # regenerate?
 
         movie_data = self.postgres_repo.get_all_movies()
         new_corpus = [f"{row['title']} | {row['genres'] or ''}" for row in movie_data]
@@ -160,26 +123,6 @@ class MilvusREPO(VectorREPO):
         else:
             self.unique_words = sorted(list(set(self.unique_words) | set(new_corpus_unique_words)))
         _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
-
-        # self.unique_words = self.vec_handler.get_unique_words(new_corpus) 
-                                    # làm sao để nó chỉ thêm vào mà ko mất bớt?
-                                    # thêm ko bớt thì vector dim sẽ rộng, tăng chi phí 
-                                    # rebuild collection hoạt động khi có unique word của movie mới ko thuộc unique word trong collection cache
-                                    # unique word trong collection càng nhiều thì số lần rebuild càng ít
-                                    # vector dim liên quan đến việc tính toán vectorize movie
-                                    # => giảm số lần rebuild và độ rộng vector dim, chọn một, so sánh chi phí
-                                    # tạm thời tăng độ rộng vector dim chi phí thấp hơn rebuild colleciton
-    # cách merge 2 unique word: 
-    # cách 1: là append for loop, điều kiện nếu word đó nằm ngoài unique word dict thì append vào, nếu nằm trong thì khỏi. append thấy hơi sai sai 
-    # cách 2: merge set list, merge bằng operator "+", dùng set() để lọc duplicate, list() để chuyển về list
-    # cách 3: dùng set lọc duplicate 2 list(thực ra ko cần vì cả 2 đều là unique word của corpus/single movie rồi, hay là cần để thực hiện cộng trừ?), 
-                    # lấy cái A trừ cái B để lọc ra cái có trong A nhưng lại ko có trong B, gọi tạm là C
-                    # rồi lấy cái C chuyển thành list rồi cộng với cái list ban đầu A 
-                    # Chú: A là corpus, B là single
-    # cách 4: dùng extend for loop
-    # cách 5: or 2 set và chuyển nó thành list
-        # new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
-        # self.unique_words = sorted(list(set(self.unique_words) | set(new_corpus_unique_words)))
 
     def get_next_available_id(self) -> int:
         self.connect_to_milvus()
@@ -217,10 +160,8 @@ class MilvusREPO(VectorREPO):
         
         movie_vector = self.vectorize_movie_text(movie_text) 
         milvus_id = self.get_next_available_id() 
-#(code=1100, message=float vector field 'vector' is illegal, array type mismatch: invalid parameter[expected=need float vector][actual=got nil])>
         if self.check_if_need_renew_colleciton(movie_text, self.unique_words):
                     self.rebuild_collection()
-                    # self.refresh_collection_state() # đã sửa hàm rebuild, ko cần refresh nữa
 
         entities = [
             [milvus_id],  
@@ -255,7 +196,6 @@ class MilvusREPO(VectorREPO):
 
         if self.check_if_need_renew_colleciton(movie_text, self.unique_words):
             self.rebuild_collection()
-            # self.refresh_collection_state()
 
         entities = [
             [milvus_id],              

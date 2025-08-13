@@ -42,13 +42,6 @@ class MovieService:
             raise Exception(f"Movie with ID {movie_id} not found")
         self.milvus_repo.delete_movie(movie_id)
         self.postgres_repo.delete_movie(movie_id)
-        corpus = self.postgres_repo.get_corpus() # dòng này là để làm gì? là xem db có còn movie hay rỗng? nếu còn tại sao phải refresh?
+        corpus = self.postgres_repo.get_corpus() 
         if corpus:  
-            self.milvus_repo.refresh_collection_state() # nếu refresh, maybe unique word ít đi -> dim nhỏ xuống
-                                            # dim này sẽ được dùng để tính vector cho movie mới 
-                                            # -> vector movie mới sẽ không trùng dim với collection -> lỗi
-                                            # tách refresh ra làm refresh corpus, refresh idf dict, refresh collection?
-                                            # ko cần refresh corpus
-                                            # hàm cũ đang là refresh dict với unique word
-                                            # refresh collection là rebuild collection
-                                            # => sửa hàm refresh dict với unique word là xong
+            self.milvus_repo.refresh_collection_state()
