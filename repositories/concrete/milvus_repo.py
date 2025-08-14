@@ -58,7 +58,7 @@ class MilvusREPO(VectorREPO):
         current_vocab = set(current_unique_words)
 
         that_movie_vocab = set(tfidf.create_vocab_single(movie_text).keys())
-
+        
         return not that_movie_vocab.issubset(current_vocab)
 
     def rebuild_collection(self) -> None:
@@ -93,7 +93,7 @@ class MilvusREPO(VectorREPO):
         movie_ids = [data['id'] for data in movie_data]
         texts = [f"{data['title']} | {data['genres'] or ''}" for data in movie_data]
         
-        batch_size = 75 
+        batch_size = 50
         for i in range(0, len(vectors), batch_size):
             batch_entities = [
                 ids[i:i+batch_size],
@@ -168,7 +168,7 @@ class MilvusREPO(VectorREPO):
             [movie_data['id']],  
             [movie_text],  
             [movie_vector]  
-        ] 
+        ]   
 
         collection.insert(entities) 
         collection.flush() 
@@ -215,7 +215,6 @@ class MilvusREPO(VectorREPO):
         expr = f"movieId == {movie_id}"
         collection.delete(expr)
         collection.flush()
-        # có cần rebuild collection?
 
     def search_top_k_movie(self, query_vector: list[float], top_k: int) -> list[SearchResult]:
         self.connect_to_milvus()
@@ -236,5 +235,3 @@ class MilvusREPO(VectorREPO):
             for hit in top_hits
         ]
         return final_results
-    
-
