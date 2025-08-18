@@ -8,10 +8,9 @@ from repositories.concrete.postgres_repo import PostgresREPO
 from services.data_service import DataManager
 
 class MovieService:
-    def __init__(self, postgres_repo=None, milvus_repo=None, data_manager=None) -> None:
+    def __init__(self, postgres_repo=None, milvus_repo=None) -> None:
         self.postgres_repo = postgres_repo if postgres_repo else PostgresREPO()
         self.milvus_repo = milvus_repo if milvus_repo else MilvusREPO()
-        self.data_manager = data_manager if data_manager else DataManager()
 
     def get_all_movies(self) -> list[Movie]:
         return self.postgres_repo.get_all_movies()
