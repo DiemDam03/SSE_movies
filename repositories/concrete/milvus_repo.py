@@ -33,8 +33,12 @@ class MilvusREPO(VectorREPO):
             print(f"Failed to connect to Milvus at {self.host}:{self.port}. Error: {e}")
             raise
 
+    def check_connection(self) -> bool:
+        return connections.has_connection(alias="default")
+
     def create_collection(self, vector_dim: int) -> Collection:
-        self.connect_to_milvus()
+        if not self.check_connection():
+            self.connect_to_milvus()
 
         fields = [
             FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
@@ -86,7 +90,8 @@ class MilvusREPO(VectorREPO):
         self.store_vectors_to_milvus(modified_vectors, movie_data)
 
     def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None: 
-        self.connect_to_milvus()
+        if not self.check_connection():
+            self.connect_to_milvus()
         collection = Collection(self.collection_name)  
         
         ids = list(range(len(vectors)))
@@ -109,12 +114,11 @@ class MilvusREPO(VectorREPO):
             index_params={
                 "metric_type": "COSINE",
                 "index_type": "IVF_FLAT",
-                "params": {"nlist": 128}
+                "params": {"nlist": max(128, len(vectors) // 10)}
             }
         )
 
     def refresh_collection_state(self) -> None:
-
         movie_data = self.postgres_repo.get_all_movies()
         new_corpus = [f"{row['title']} | {row['genres'] or ''}" for row in movie_data]
         new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
@@ -125,7 +129,8 @@ class MilvusREPO(VectorREPO):
         _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
 
     def get_next_available_id(self) -> int:
-        self.connect_to_milvus()
+        if not self.check_connection():
+            self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
         if collection.num_entities == 0:
@@ -151,12 +156,12 @@ class MilvusREPO(VectorREPO):
         if self.unique_words is None or self.idf_dict is None:
             self.refresh_collection_state()
 
-        self.connect_to_milvus()
+        if not self.check_connection():
+            self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load() 
 
         movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
-
         
         movie_vector = self.vectorize_movie_text(movie_text) 
         milvus_id = self.get_next_available_id() 
@@ -177,7 +182,8 @@ class MilvusREPO(VectorREPO):
         if self.unique_words is None or self.idf_dict is None:
             self.refresh_collection_state()
         
-        self.connect_to_milvus()
+        if not self.check_connection():
+            self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
 
@@ -208,7 +214,8 @@ class MilvusREPO(VectorREPO):
         collection.flush()
 
     def delete_movie(self, movie_id: int) -> None:
-        self.connect_to_milvus()
+        if not self.check_connection():
+            self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
 
@@ -217,7 +224,8 @@ class MilvusREPO(VectorREPO):
         collection.flush()
 
     def search_top_k_movie(self, query_vector: list[float], top_k: int) -> list[SearchResult]:
-        self.connect_to_milvus()
+        if not self.check_connection():
+            self.connect_to_milvus()
         collection = Collection(self.collection_name)
         collection.load()
 

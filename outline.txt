@@ -1,0 +1,23 @@
+system overview:
+- feature: semantic search, not need exactly name
+- architecture: api(fastapi) + vector_db(milvus) + db(postgres)
+- algorithm: tfidf vectorize + cosine similarity
+
+detailed:
+
+- endpoint: 
+ + admin: basic crud (get by id, get all, add, update, delete)
+          working directly on postgres db and sync to milvus collection
+ + user: basic semantic search top k 
+         using vector to search similar entities.
+
+- feature: 
+ + real time update: sync on change.
+ + repositories pattern design.
+
+- flow:
+ + create db with prepared data.
+ + tfidf vectorize data.
+ + vector store to milvus collection.
+ + take input and vectorize input.
+ + cosine similarity to find top k matched result.
