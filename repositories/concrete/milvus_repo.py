@@ -11,6 +11,8 @@ import core.tfidf as tfidf
 from core.utilities import VectorHandler
 
 COLLECTION_NAME = "movie_collection"
+IDF_COLLECTION_NAME = "idf_collection"
+UNIQUE_WORD_COLLECTION_NAME = "unique_word_collection"
 
 class MilvusREPO(VectorREPO):
     def __init__(self) -> None:
@@ -21,9 +23,12 @@ class MilvusREPO(VectorREPO):
         self.postgres_repo = PostgresREPO()
         self.idf_dict = {}
         self.unique_words = []
+        self.idf_collection_name = IDF_COLLECTION_NAME
+        self.unique_words_colleciton_name = UNIQUE_WORD_COLLECTION_NAME
 
         self.connect_to_milvus()
         self.do_has_collection = self.has_collection(COLLECTION_NAME)
+        self.load_state()
 
     def connect_to_milvus(self) -> None:
         try:
@@ -35,6 +40,38 @@ class MilvusREPO(VectorREPO):
         except Exception as e:
             print(f"Failed to connect to Milvus at {self.host}:{self.port}. Error: {e}")
             raise
+    
+    def create_collection_for_idf_dict(self) -> Collection:
+        self.connect_to_milvus()
+
+        fields = [
+            # FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
+            FieldSchema(name="idf_dict", dtype=DataType.JSON), # dtype ? # placehodler, not UNKNOWN
+            # FieldSchema(name="unique_words", dtype=DataType.UNKNOWN), # phải chia ra làm 2 collection vì 2 cái này ko liên quan đến nhau
+                                                        # không thể nhét chung như vậy được.
+        ]
+        schema = CollectionSchema(fields, "idf dict collection")
+
+        if utility.has_collection(self.idf_collection_name):
+            utility.drop_collection(self.idf_collection_name)
+
+        collection = Collection(self.idf_collection_name, schema)
+        return collection 
+    
+    def create_collection_for_list(self) -> Collection:
+        self.connect_to_milvus()
+
+        fields = [
+            # FieldSchema(name="id", dtype=DataType.INT64, is_primary=True, auto_id=False),
+            FieldSchema(name="unique_word", dtype=DataType.VARCHAR), # placehodler, not UNKNOWN
+        ]
+        schema = CollectionSchema(fields, "unique words collection")
+
+        if utility.has_collection(self.unique_words_colleciton_name):
+            utility.drop_collection(self.unique_words_colleciton_name)
+
+        collection = Collection(self.unique_words_colleciton_name, schema)
+        return collection
 
     def create_collection(self, vector_dim: int) -> Collection:
         self.connect_to_milvus()
@@ -93,6 +130,36 @@ class MilvusREPO(VectorREPO):
         self.create_collection(len(self.unique_words))
 
         self.store_vectors_to_milvus(modified_vectors, movie_data)
+        self.store_state(self.idf_dict, self.unique_words)
+
+    def store_state(self, idf_dict: dict, unique_words: list[str]) -> None:
+        self.connect_to_milvus()
+        idf_collection = Collection(self.idf_collection_name)
+        
+        idf_collection.insert(idf_dict)
+        idf_collection.flush()
+
+        unique_word_collection = Collection(self.unique_words_colleciton_name)
+        # batch_size = 50
+        # for word in unique_words:
+
+        unique_word_collection.insert(unique_words)
+        unique_word_collection.flush()
+    
+    def load_state(self) -> None:
+        self.connect_to_milvus()
+        idf_collection = Collection(self.idf_collection_name)
+        idf_collection.load()
+
+        unique_word_collection = Collection(self.unique_words_colleciton_name)
+        unique_word_collection.load()
+
+
+        idf_dict = idf_collection.query(expr = "", output_fields=["idf_dict"])
+        unique_words = unique_word_collection.query(expr = "", output_fields=["unique_words"])
+
+        self.idf_dict = idf_dict
+        self.unique_words = unique_words
 
 
     def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None: 
@@ -122,6 +189,7 @@ class MilvusREPO(VectorREPO):
                 "params": {"nlist": 128}
             }
         )
+
     def refresh_collection_state(self) -> None:
         movie_data = self.postgres_repo.get_all_movies()
         new_corpus = [f"{row['title']} | {row['genres'] or ''}" for row in movie_data]
@@ -131,6 +199,7 @@ class MilvusREPO(VectorREPO):
         else:
             self.unique_words = sorted(list(set(self.unique_words) | set(new_corpus_unique_words)))
         _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
+        self.store_state(self.idf_dict, self.unique_words)
 
     def get_next_available_id(self) -> int:
         self.connect_to_milvus()
@@ -157,7 +226,7 @@ class MilvusREPO(VectorREPO):
         movie_vector = self.vec_handler.converting_tfidf_to_fixed_dim_vector(movie_tfidf, self.unique_words)    
 
         return movie_vector
-    
+
     def add_movie(self, movie_data: dict) -> None:
         if not self.unique_words or not self.idf_dict:
             self.refresh_collection_state()
@@ -201,10 +270,6 @@ class MilvusREPO(VectorREPO):
 
         expr = f"movieId == {movie_id}"
         existing_records = collection.query(expr=expr, output_fields=["id", "movieId"])
-    
-        if not existing_records:
-            self.add_movie(movie_data)  
-            return
         
         milvus_id = existing_records[0]["id"]
         movie_vector = self.vectorize_movie_text(movie_text) 
@@ -232,7 +297,7 @@ class MilvusREPO(VectorREPO):
         if not self.unique_words or not self.idf_dict:
             self.refresh_collection_state()
             
-        if not self.has_collection:
+        if not self.do_has_collection:
             return []
 
         self.connect_to_milvus()
