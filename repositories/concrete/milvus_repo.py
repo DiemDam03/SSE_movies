@@ -9,8 +9,6 @@ from models.movie_model import Movie
 from models.search_result_model import SearchResult
 import core.tfidf as tfidf
 from core.utilities import VectorHandler
-import json
-import pickle
 
 COLLECTION_NAME = "movie_collection"
 
@@ -23,6 +21,9 @@ class MilvusREPO(VectorREPO):
         self.postgres_repo = PostgresREPO()
         self.idf_dict = {}
         self.unique_words = []
+
+        self.connect_to_milvus()
+        self.do_has_collection = self.has_collection(COLLECTION_NAME)
 
     def connect_to_milvus(self) -> None:
         try:
@@ -52,6 +53,13 @@ class MilvusREPO(VectorREPO):
 
         collection = Collection(self.collection_name, schema)
         return collection 
+    
+    def has_collection(self, collection_name):
+        try:
+            return utility.has_collection(collection_name, using="default")
+        except Exception as e:
+            print(f"Error checking collection '{collection_name}': {e}")
+            return False
         
     def check_if_need_renew_colleciton(self, movie_text: str, current_unique_words: list[str]) -> bool:
         if not current_unique_words:
@@ -62,49 +70,30 @@ class MilvusREPO(VectorREPO):
         
         return not that_movie_vocab.issubset(current_vocab)
 
-    def get_collection_info(self) -> dict:
-        """Get current collection dimension and state info"""
-        try:
-            self.connect_to_milvus()
-            if utility.has_collection(self.collection_name):
-                collection = Collection(self.collection_name)
-                collection.load()
-                # Get schema to determine current dimension
-                schema = collection.schema
-                for field in schema.fields:
-                    if field.name == "vector":
-                        return {
-                            'dimension': field.params.get('dim', 0),
-                            'exists': True,
-                            'num_entities': collection.num_entities
-                        }
-            return {'dimension': 0, 'exists': False, 'num_entities': 0}
-        except Exception as e:
-            print(f"Error getting collection info: {e}")
-            return {'dimension': 0, 'exists': False, 'num_entities': 0}
-
     def rebuild_collection(self) -> None:
         movie_data = self.postgres_repo.get_all_movies()
         if not movie_data:
-            return {"message": "Empty database"}
+            return {"message": "Emty database"}
 
         new_corpus = [f"{row['title']} | {row['genres'] or ''}" for row in movie_data]
 
-        # Generate complete vocabulary and vectors
-        self.unique_words = self.vec_handler.get_unique_words(new_corpus)
+        new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
+
+        if not self.unique_words: 
+            self.unique_words = new_corpus_unique_words
+        else:
+            self.unique_words = sorted(list(set(self.unique_words) | set(new_corpus_unique_words))) 
         tfidf_all, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
 
-        modified_vectors = [
+        modified_vectors =[
             self.vec_handler.converting_tfidf_to_fixed_dim_vector(tfidf_dict, self.unique_words)
             for tfidf_dict in tfidf_all
-        ]
+        ]                                  
 
-        # Create collection with new dimension
         self.create_collection(len(self.unique_words))
+
         self.store_vectors_to_milvus(modified_vectors, movie_data)
-        
-        # Save state after rebuild
-        # self._save_state()
+
 
     def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None: 
         self.connect_to_milvus()
@@ -133,33 +122,15 @@ class MilvusREPO(VectorREPO):
                 "params": {"nlist": 128}
             }
         )
-
     def refresh_collection_state(self) -> None:
-        """Refresh state from current database"""
         movie_data = self.postgres_repo.get_all_movies()
-        if not movie_data:
-            self.unique_words = []
-            self.idf_dict = {}
-            # self._save_state()
-            return
-            
         new_corpus = [f"{row['title']} | {row['genres'] or ''}" for row in movie_data]
-        
-        # Check if collection exists and get its dimension
-        collection_info = self.get_collection_info()
-        
-        if collection_info['exists']:
-            # If collection exists, try to load existing state
-            if not self.unique_words or not self.idf_dict:
-                # Regenerate state based on current data
-                self.unique_words = self.vec_handler.get_unique_words(new_corpus)
-                _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
+        new_corpus_unique_words = self.vec_handler.get_unique_words(new_corpus)
+        if not self.unique_words: 
+            self.unique_words = new_corpus_unique_words
         else:
-            # No collection exists, generate fresh state
-            self.unique_words = self.vec_handler.get_unique_words(new_corpus)
-            _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
-            
-        # self._save_state()
+            self.unique_words = sorted(list(set(self.unique_words) | set(new_corpus_unique_words)))
+        _, self.idf_dict = self.vec_handler.generate_tfidf(new_corpus)
 
     def get_next_available_id(self) -> int:
         self.connect_to_milvus()
@@ -188,16 +159,14 @@ class MilvusREPO(VectorREPO):
         return movie_vector
     
     def add_movie(self, movie_data: dict) -> None:
-        # Ensure we have current state
         if not self.unique_words or not self.idf_dict:
             self.refresh_collection_state()
 
         movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
 
-        # Check if we need to rebuild collection due to new vocabulary
         if self.check_if_need_renew_colleciton(movie_text, self.unique_words):
             self.rebuild_collection()
-            return  # rebuild_collection handles the addition
+            return  
 
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
@@ -217,16 +186,14 @@ class MilvusREPO(VectorREPO):
         collection.flush() 
 
     def update_movie(self, movie_id: int, movie_data: dict) -> None:
-        # Ensure we have current state
         if not self.unique_words or not self.idf_dict:
             self.refresh_collection_state()
         
         movie_text = f"{movie_data['title']} | {movie_data.get('genres', '') or ''}" 
 
-        # Check if we need to rebuild collection due to new vocabulary
         if self.check_if_need_renew_colleciton(movie_text, self.unique_words):
             self.rebuild_collection()
-            return  # rebuild_collection handles all movies including this update
+            return 
 
         self.connect_to_milvus()
         collection = Collection(self.collection_name)
@@ -262,19 +229,10 @@ class MilvusREPO(VectorREPO):
         collection.flush()
 
     def search_top_k_movie(self, query_vector: list[float], top_k: int) -> list[SearchResult]:
-        # Ensure we have current state before searching
         if not self.unique_words or not self.idf_dict:
             self.refresh_collection_state()
             
-        # Verify the query vector has the correct dimension
-        collection_info = self.get_collection_info()
-        if not collection_info['exists']:
-            return []
-            
-        expected_dim = collection_info['dimension']
-        if len(query_vector) != expected_dim:
-            print(f"Dimension mismatch: query vector has {len(query_vector)} dimensions, "
-                  f"but collection expects {expected_dim}")
+        if not self.has_collection:
             return []
 
         self.connect_to_milvus()
