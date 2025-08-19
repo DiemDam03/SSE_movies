@@ -24,9 +24,6 @@ class MovieService:
         self.milvus_repo.add_movie(movie) 
 
     def update_movie(self, movie_id: int, movie: dict) -> dict:
-        existing_movie = self.postgres_repo.get_movie_by_id(movie_id)
-        if not existing_movie:
-            raise Exception(f"Movie with ID {movie_id} not found")
         self.postgres_repo.update_movie(movie_id, movie)
         updated_movie_data = {
             'id': movie_id,
