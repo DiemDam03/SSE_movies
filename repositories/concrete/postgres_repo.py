@@ -77,6 +77,24 @@ class PostgresREPO(MovieREPO):
         conn.commit()
         cursor.close()
         conn.close()
+    
+    def transfer_data_not_renew_table(self, csv_path) -> None:
+        if not os.path.exists(csv_path):
+            raise FileNotFoundError(f"CSV file not found: {csv_path}")
+            
+        df = pd.read_csv(csv_path)
+        conn = self.connect_to_postgres()
+        cursor = conn.cursor()
+
+        for _, row in df.iterrows():
+            cursor.execute(
+                "INSERT INTO movies (movieId, title, genres) VALUES (%s, %s, %s)",
+                (int(row['movieId']), row['title'], row.get('genres', ''))
+            )
+        
+        conn.commit()
+        cursor.close()
+        conn.close()
 
     def fetch_data(self) -> list[dict]:
         if self.cache is not None:

@@ -1,0 +1,110 @@
+    participant Client as Client
+    participant API as FastAPI
+    participant MS as MovieService
+    participant SS as SearchService
+    participant DS as DataService
+    participant VH as VectorHandler
+    participant PRepo as PostgresREPO
+    participant MRepo as MilvusREPO
+    participant PG as PostgreSQL
+    participant MV as Milvus
+#
+    Note over Client, MV: Initialization
+    DS ->> PRepo: create_table()
+    PRepo ->> PG: CREATE TABLE movies
+    DS ->> PRepo: transfer_data_from_csv_to_postgres()
+    PRepo ->> PG: INSERT movie data
+    DS ->> PRepo: get_corpus()
+    PRepo ->> PG: SELECT all movies
+    PG -->> PRepo: movie data
+    PRepo -->> DS: corpus list
+    DS ->> VH: generate_vectors(corpus)
+    VH -->> DS: vectors, unique_words
+    DS ->> MRepo: create_collection(vector_dim = unique_words)
+    MRepo ->> MV: CREATE collection
+    DS ->> MRepo: store_vectors_to_milvus()
+    MRepo ->> MV: INSERT vectors
+#
+    Note over Client, MV: Movie Search Flow
+    Client ->> API: GET / top_k movies
+    API ->> SS: search_top_k_movie(query, top_k)
+    SS ->> PRepo: get_corpus()
+    PRepo ->> PG: SELECT movies, fecthall()
+    PG -->> PRepo: movie data
+    PRepo -->> SS: corpus
+    SS ->> MRepo: refresh_collection_state() (if needed)
+    MRepo ->> PRepo: get_all_movies()
+    PRepo -->> MRepo: movie data
+    MRepo ->> MRepo: update state
+    SS ->> VH: converting_tfidf_to_fixed_dim_vector()
+    VH -->> SS: query_vector
+    SS ->> MRepo: search_top_k_movie(query_vector, top_k)
+    MRepo ->> MV: vector search
+    MV -->> MRepo: search results
+    MRepo -->> SS: SearchResult list
+    SS -->> API: SearchResult list
+    API -->> Client: SearchResult list
+#
+    Note over Client, MV: Add Movie Flow
+    Client ->> API: POST /movies/ {movie_data}
+    API ->> MS: add_movie(movie_data)
+    MS ->> PRepo: add_movie(movie_data)
+    PRepo ->> PG: INSERT movie
+    MS ->> MRepo: add_movie(movie_data)
+    MRepo ->> MRepo: check_if_need_renew_collection()
+    MRepo ->> MRepo: rebuild_collection() (if needed)
+    MRepo ->> VH: vectorize_movie_text(movie_text)
+    VH -->> MRepo: movie vector
+    MRepo ->> MV: INSERT new vector
+    MRepo -->> MS: success
+    MS -->> API: success
+    API -->> Client: {"message": "Movie added"}
+#
+    Note over Client, MV: Update Movie Flow
+    Client ->> API: PUT /movies/{id} {movie_data}
+    API ->> MS: update_movie(movie_id, movie_data)
+    MS ->> PRepo: get_movie_by_id(movie_id)
+    PRepo ->> PG: SELECT movie
+    PG -->> PRepo: movie data
+    PRepo -->> MS: existing movie
+    MS ->> PRepo: update_movie(movie_id, movie_data)
+    PRepo ->> PG: UPDATE movie
+    MS ->> MRepo: update_movie(movie_id, movie_data)
+    MRepo ->> MRepo: check_if_need_renew_collection()
+    MRepo ->> MRepo: rebuild_collection()
+    MRepo ->> MV: UPSERT vector
+    MRepo -->> MS: success
+    MS -->> API: success
+    API -->> Client: {"message": "Movie updated"}
+#
+    Note over Client, MV: Delete Movie Flow
+    Client ->> API: DELETE /movies/{id}
+    API ->> MS: delete_movie(movie_id)
+    MS ->> PRepo: get_movie_by_id(movie_id)
+    PRepo -->> MS: existing movie
+    MS ->> MRepo: delete_movie(movie_id)
+    MRepo ->> MV: DELETE vector
+    MS ->> PRepo: delete_movie(movie_id)
+    PRepo ->> PG: DELETE movie
+    MS ->> MRepo: refresh_collection_state()
+    MRepo -->> MS: success
+    MS -->> API: success
+    API -->> Client: {"message": "Movie deleted"}
+#
+    Note over Client, MV: Get Movies Flow
+    Client ->> API: GET /movies/
+    API ->> MS: get_all_movies() 
+    MS ->> PRepo: get_all_movies()
+    PRepo ->> PG: SELECT movies, fetchall()
+    PG -->> PRepo: movies data
+    PRepo -->> MS: Movie objects
+    MS -->> API: Movie objects
+    API -->> Client: Movies list
+    Client ->> API: GET /movie/{id}
+    API ->> MS: get_movie_by_id(id)
+    MS ->> PRepo: get_movie_by_id(id)
+    PRepo ->> PG: SELECT movie
+    PG -->> PRepo: movie data
+    PRepo -->> MS: Movie object
+    MS -->> API: Movie object
+    API -->> Client: Movie object

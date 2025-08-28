@@ -32,7 +32,7 @@ class SearchService:
             return []
 
         if not self.milvus_repo.has_collection:
-            print("Collection does not exist. Please initialize the data first.")
+            print("Collection does not exist.")
             return []
 
         query_vocab = tfidf.create_vocab_single(query) 
@@ -52,7 +52,39 @@ class SearchService:
                 query_vector = self.vec_handler.converting_tfidf_to_fixed_dim_vector(query_tfidf, unique_words)
                 
                 if len(query_vector) != expected_dim:
-                    print("Dimension still mismatched after refresh. Collection may need rebuilding.")
+                    print("Dimension mismatched.")
+                    return []
+            else:
+                return []
+
+        try:
+            return self.milvus_repo.search_top_k_movie(query_vector, top_k)
+        except Exception as e:
+            print(f"Search failed: {e}")
+            return []
+        
+    def search_top_k_movie(self, query: str, top_k: int) -> list[SearchResult]:
+        if not query or not query.strip():
+            return []
+        
+        corpus = self.postgres_repo.get_corpus()
+        if not corpus:
+            return []
+        
+        query_vector = self.milvus_repo.vectorize_movie_text(query)
+
+        expected_dim = len(self.milvus_repo.unique_words)
+        if len(query_vector) != expected_dim:            
+
+            self.milvus_repo.refresh_collection_state()
+            unique_words = self.milvus_repo.unique_words
+            idf_dict = self.milvus_repo.idf_dict
+            
+            if unique_words and idf_dict:
+                query_vector = self.milvus_repo.vectorize_movie_text(query)
+                
+                if len(query_vector) != expected_dim:
+                    print("Dimension mismatched.")
                     return []
             else:
                 return []

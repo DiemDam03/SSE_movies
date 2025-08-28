@@ -27,13 +27,20 @@ class MilvusREPO(VectorREPO):
 
     def connect_to_milvus(self) -> None:
         try:
+            try:
+                connections.disconnect("default")
+            except:
+                pass
+                
             return connections.connect(
                 alias="default",
                 host=self.host,
                 port=self.port,
+                timeout=10.0 
             )
         except Exception as e:
             print(f"Failed to connect to Milvus at {self.host}:{self.port}. Error: {e}")
+            print(f"Error type: {type(e).__name__}")
             raise
 
     def create_collection(self, vector_dim: int) -> Collection:
@@ -94,7 +101,6 @@ class MilvusREPO(VectorREPO):
 
         self.store_vectors_to_milvus(modified_vectors, movie_data)
 
-
     def store_vectors_to_milvus(self, vectors: list[list[float]], movie_data: list[dict]) -> None: 
         self.connect_to_milvus()
         collection = Collection(self.collection_name)  
@@ -102,7 +108,7 @@ class MilvusREPO(VectorREPO):
         ids = list(range(len(vectors)))
         movie_ids = [data['id'] for data in movie_data]
         texts = [f"{data['title']} | {data['genres'] or ''}" for data in movie_data]
-        
+
         batch_size = 50
         for i in range(0, len(vectors), batch_size):
             batch_entities = [
@@ -122,6 +128,7 @@ class MilvusREPO(VectorREPO):
                 "params": {"nlist": 128}
             }
         )
+
     def refresh_collection_state(self) -> None:
         movie_data = self.postgres_repo.get_all_movies()
         new_corpus = [f"{row['title']} | {row['genres'] or ''}" for row in movie_data]

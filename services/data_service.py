@@ -23,14 +23,25 @@ class DataManager:
 
         self.sync_postgres_milvus_in_bulk()
        
+    # def sync_postgres_milvus_in_bulk(self) -> None:
+    #     corpus = self.postgres_repo.get_corpus()
+    #     vectors, unique_words = self.vec_handler.generate_vectors(corpus)
+
+    #     self.milvus_repo.create_collection(len(unique_words))
+
+    #     movie_data = self.postgres_repo.get_all_movies()
+    #     self.milvus_repo.store_vectors_to_milvus(vectors, movie_data)
+
     def sync_postgres_milvus_in_bulk(self) -> None:
-        corpus = self.postgres_repo.get_corpus()
-        vectors, unique_words = self.vec_handler.generate_vectors(corpus)
+        self.milvus_repo.rebuild_collection()
 
-        self.milvus_repo.create_collection(len(unique_words))
+    def insert_more_data_in_bulk(self, dataset_path)->None:
 
-        movie_data = self.postgres_repo.get_all_movies()
-        self.milvus_repo.store_vectors_to_milvus(vectors, movie_data)
+        # self.postgres_repo.transfer_data_from_csv_to_postgres(dataset_path) # ko dùng này dc nếu muốn insert thêm
+        #                                                         # vì hàm này xóa hết bảng cũ để insert mới vào
+        self.postgres_repo.transfer_data_not_renew_table(dataset_path)
+        # self.sync_postgres_milvus_in_bulk() # dùng cái này thì nó tái tạo lại hoàn toàn -> tốn thời gian vô nghĩa
+        self.milvus_repo.rebuild_collection()
 
 if __name__ == "__main__":
     dm = DataManager()

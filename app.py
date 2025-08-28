@@ -32,7 +32,7 @@ def get_all_movies():
 @app.get("/movies/{movie_id}", response_model=Movie)
 def get_movie_by_id(movie_id: int):
     movie = movie_service.get_movie_by_id(movie_id)
-    if movie is None:
+    if movie is None:   
         raise HTTPException(status_code=404, detail="Movie not found")
     return movie
 
